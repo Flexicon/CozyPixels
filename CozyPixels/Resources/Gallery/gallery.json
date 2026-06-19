@@ -1,0 +1,9 @@
+[
+  {
+    "id": "sample-001",
+    "title": "Sample Cat",
+    "tags": ["animal", "easy"],
+    "assetName": "gallery_sample_cat",
+    "difficulty": "easy"
+  }
+]

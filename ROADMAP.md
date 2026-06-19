@@ -267,7 +267,7 @@ Acceptance criteria:
 
 ## Phase 6 — Bundled Gallery
 
-Status: pending
+Status: completed
 
 Create:
 

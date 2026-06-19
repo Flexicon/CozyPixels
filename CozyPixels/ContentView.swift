@@ -19,23 +19,12 @@ struct ContentView: View {
             }
 
             NavigationStack {
-                GalleryPlaceholderView()
+                GalleryScreen()
             }
             .tabItem {
                 Label("Gallery", systemImage: "photo.on.rectangle")
             }
         }
-    }
-}
-
-private struct GalleryPlaceholderView: View {
-    var body: some View {
-        ContentUnavailableView(
-            "Gallery Coming Soon",
-            systemImage: "sparkles.rectangle.stack",
-            description: Text("Bundled pixel art examples will appear here.")
-        )
-        .navigationTitle("Gallery")
     }
 }
 

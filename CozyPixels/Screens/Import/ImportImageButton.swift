@@ -115,7 +115,7 @@ extension ImageImportResult: Identifiable {
     }
 }
 
-private struct InitialImportPreviewRenderer {
+struct InitialImportPreviewRenderer {
     func pngData(for document: PaintingDocument) -> Data? {
         let scale = max(1, min(12, 512 / max(document.width, document.height)))
         let size = CGSize(width: document.width * scale, height: document.height * scale)
