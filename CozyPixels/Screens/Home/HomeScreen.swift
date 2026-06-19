@@ -36,15 +36,16 @@ struct HomeScreen: View {
         .navigationDestination(for: Painting.self) { painting in
             PaintingEditorPlaceholderView(painting: painting)
         }
-        #if DEBUG
         .toolbar {
+            ImportImageButton()
+            #if DEBUG
             if paintings.isEmpty {
                 Button("Add Samples") {
                     addSamplePaintings()
                 }
             }
+            #endif
         }
-        #endif
     }
 
     private var emptyState: some View {
@@ -113,7 +114,7 @@ struct HomeScreen: View {
     #endif
 }
 
-private struct PaintingEditorPlaceholderView: View {
+struct PaintingEditorPlaceholderView: View {
     let painting: Painting
 
     var body: some View {

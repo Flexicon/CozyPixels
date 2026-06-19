@@ -237,7 +237,7 @@ Acceptance criteria:
 
 ## Phase 5 — Photo Import UI
 
-Status: pending
+Status: completed
 
 Create:
 
