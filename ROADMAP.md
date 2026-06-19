@@ -57,6 +57,8 @@ Not included:
 
 ## Phase 0 — Create Xcode Project
 
+Status: completed
+
 Create a fresh Xcode project:
 
 ```txt
@@ -91,6 +93,8 @@ Gallery
 
 ## Phase 1 — Core Data Types
 
+Status: completed
+
 Create the basic model and support types.
 
 Files:
@@ -120,6 +124,8 @@ Acceptance criteria:
 * Unit tests cover bitset and pixel indexing.
 
 ## Phase 2 — File Storage
+
+Status: pending
 
 Create:
 
@@ -154,6 +160,8 @@ Acceptance criteria:
 * Deleting a painting removes its files.
 
 ## Phase 3 — Image Import and Parsing
+
+Status: pending
 
 Create:
 
@@ -198,6 +206,8 @@ Acceptance criteria:
 
 ## Phase 4 — Home Screen
 
+Status: pending
+
 Create:
 
 ```txt
@@ -227,6 +237,8 @@ Acceptance criteria:
 
 ## Phase 5 — Photo Import UI
 
+Status: pending
+
 Create:
 
 ```txt
@@ -254,6 +266,8 @@ Acceptance criteria:
 * Initial preview is grayscale numbered/progress state, not original image.
 
 ## Phase 6 — Bundled Gallery
+
+Status: pending
 
 Create:
 
@@ -306,6 +320,8 @@ After creation, wrong attempts persist normally.
 
 ## Phase 7 — Canvas Rendering
 
+Status: pending
+
 Create:
 
 ```txt
@@ -351,6 +367,8 @@ Acceptance criteria:
 * Selected color highlights matching unpainted cells.
 
 ## Phase 8 — Editor Gestures and Painting
+
+Status: pending
 
 Create:
 
@@ -408,6 +426,8 @@ Acceptance criteria:
 
 ## Phase 9 — Preview Renderer
 
+Status: pending
+
 Create:
 
 ```txt
@@ -440,6 +460,8 @@ Acceptance criteria:
 
 ## Phase 10 — Polish and Error States
 
+Status: pending
+
 Add user-facing states:
 
 * empty home
@@ -467,6 +489,8 @@ Acceptance criteria:
 * Editor remains usable on iPad mini.
 
 ## Phase 11 — Tests
+
+Status: pending
 
 Add tests for non-UI logic.
 
@@ -497,6 +521,8 @@ Specific cases:
 * gallery image creates Painting only after first correct paint
 
 ## Phase 12 — Performance Pass
+
+Status: pending
 
 Profile after the MVP works.
 
@@ -590,4 +616,3 @@ Do not start backend/CMS/export/quantization work until the MVP loop is complete
 ```txt
 import/gallery -> parse -> open editor -> paint -> persist -> preview -> resume
 ```
-

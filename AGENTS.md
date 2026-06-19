@@ -514,6 +514,7 @@ PaintByNumbers/
 
 * Keep implementation incremental.
 * Prefer small, compile-safe commits.
+* Keep `ROADMAP.md` phase `Status:` lines current. Initialize new phases as `Status: pending`, mark the active phase `Status: in progress`, and mark a phase `Status: completed` only after its acceptance criteria are implemented and verified.
 * Do not rewrite large parts of the app without a reason.
 * Do not introduce third-party dependencies without updating this file.
 * Do not store per-pixel state in SwiftData rows.
@@ -549,4 +550,3 @@ MVP is complete when:
 * Bundled gallery exists.
 * Gallery image only becomes a `Painting` after the first correct pixel.
 * Completed image displays as fully colored.
-
