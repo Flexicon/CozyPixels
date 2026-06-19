@@ -1,6 +1,6 @@
 import Foundation
 
-struct PaintingDocument: Codable, Equatable {
+nonisolated struct PaintingDocument: Codable, Equatable, Sendable {
     var version: Int
     var width: Int
     var height: Int
@@ -28,7 +28,7 @@ struct PaintingDocument: Codable, Equatable {
     }
 }
 
-struct WrongAttempt: Codable, Hashable {
+nonisolated struct WrongAttempt: Codable, Hashable, Sendable {
     var pixelIndex: Int
     var attemptedPaletteColorID: Int
     var createdAt: Date

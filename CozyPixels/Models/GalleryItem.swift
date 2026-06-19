@@ -1,6 +1,6 @@
 import Foundation
 
-struct GalleryItem: Codable, Hashable, Identifiable {
+nonisolated struct GalleryItem: Codable, Hashable, Identifiable, Sendable {
     var id: String
     var title: String
     var tags: [String]

@@ -1,6 +1,6 @@
 import Foundation
 
-struct Bitset: Equatable {
+nonisolated struct Bitset: Equatable, Sendable {
     private(set) var data: Data
     let bitCount: Int
 

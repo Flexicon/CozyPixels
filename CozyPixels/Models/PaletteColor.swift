@@ -1,6 +1,6 @@
 import Foundation
 
-struct PaletteColor: Codable, Hashable, Identifiable {
+nonisolated struct PaletteColor: Codable, Hashable, Identifiable, Sendable {
     var id: Int
     var red: UInt8
     var green: UInt8

@@ -98,4 +98,99 @@ struct CozyPixelsTests {
         #expect(pixelIndex == 35)
     }
 
+    @Test func paintingStoreSavesAndLoadsPaintingDocument() throws {
+        let rootDirectory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: rootDirectory) }
+        let store = try PaintingStore(rootDirectory: rootDirectory)
+        let paintingID = UUID()
+        let document = samplePaintingDocument()
+
+        try store.savePaintingDocument(document, for: paintingID)
+        let loadedDocument = try store.loadPaintingDocument(for: paintingID)
+
+        #expect(loadedDocument == document)
+        #expect(FileManager.default.fileExists(atPath: store.paintingDocumentURL(for: paintingID).path))
+    }
+
+    @Test func paintingStoreReportsMissingPaintingDocument() throws {
+        let rootDirectory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: rootDirectory) }
+        let store = try PaintingStore(rootDirectory: rootDirectory)
+        let paintingID = UUID()
+
+        do {
+            _ = try store.loadPaintingDocument(for: paintingID)
+            Issue.record("Expected missing painting document error")
+        } catch PaintingStoreError.missingPaintingDocument(let url) {
+            #expect(url == store.paintingDocumentURL(for: paintingID))
+        }
+    }
+
+    @Test func paintingStoreReportsCorruptPaintingDocument() throws {
+        let rootDirectory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: rootDirectory) }
+        let store = try PaintingStore(rootDirectory: rootDirectory)
+        let paintingID = UUID()
+        let directoryURL = store.directoryURL(for: paintingID)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        try Data("not json".utf8).write(to: store.paintingDocumentURL(for: paintingID))
+
+        do {
+            _ = try store.loadPaintingDocument(for: paintingID)
+            Issue.record("Expected corrupt painting document error")
+        } catch PaintingStoreError.corruptPaintingDocument(let url) {
+            #expect(url == store.paintingDocumentURL(for: paintingID))
+        }
+    }
+
+    @Test func paintingStoreSavesPreviewPNG() throws {
+        let rootDirectory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: rootDirectory) }
+        let store = try PaintingStore(rootDirectory: rootDirectory)
+        let paintingID = UUID()
+        let previewData = Data([0x89, 0x50, 0x4E, 0x47])
+
+        try store.savePreviewPNG(previewData, for: paintingID)
+
+        #expect(try Data(contentsOf: store.previewURL(for: paintingID)) == previewData)
+    }
+
+    @Test func paintingStoreDeletesPaintingDirectory() throws {
+        let rootDirectory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: rootDirectory) }
+        let store = try PaintingStore(rootDirectory: rootDirectory)
+        let paintingID = UUID()
+
+        try store.savePaintingDocument(samplePaintingDocument(), for: paintingID)
+        try store.savePreviewPNG(Data([1, 2, 3]), for: paintingID)
+
+        try store.deletePaintingDirectory(for: paintingID)
+
+        #expect(FileManager.default.fileExists(atPath: store.directoryURL(for: paintingID).path) == false)
+    }
+
+}
+
+private func samplePaintingDocument() -> PaintingDocument {
+    PaintingDocument(
+        width: 2,
+        height: 2,
+        palette: [
+            PaletteColor(id: 1, red: 255, green: 0, blue: 0),
+            PaletteColor(id: 2, red: 0, green: 0, blue: 255)
+        ],
+        targetColorIndexByPixel: [1, 2, 2, 1],
+        correctPaintedBitset: Data([0b0000_0101]),
+        wrongAttempts: [
+            WrongAttempt(pixelIndex: 1, attemptedPaletteColorID: 2, createdAt: Date(timeIntervalSince1970: 1_800))
+        ]
+    )
+}
+
+private func temporaryDirectory() throws -> URL {
+    let url = FileManager.default.temporaryDirectory
+        .appending(path: "CozyPixelsTests", directoryHint: .isDirectory)
+        .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url
 }

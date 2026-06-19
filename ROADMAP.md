@@ -125,7 +125,7 @@ Acceptance criteria:
 
 ## Phase 2 — File Storage
 
-Status: pending
+Status: completed
 
 Create:
 
