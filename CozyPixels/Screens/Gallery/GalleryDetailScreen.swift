@@ -16,9 +16,15 @@ struct GalleryDetailScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                GalleryAssetImage(assetName: item.assetName)
-                    .aspectRatio(1, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                if let importResult {
+                    PixelCanvasView(state: PixelCanvasRenderState(document: importResult.document, selectedPaletteColorID: selectedPaletteColorID, showGrid: true, showNumbers: true, scale: 1))
+                        .frame(maxHeight: 520)
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                } else {
+                    GalleryAssetImage(assetName: item.assetName)
+                        .aspectRatio(1, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                }
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text(item.title)

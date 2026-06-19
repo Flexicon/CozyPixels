@@ -117,20 +117,46 @@ struct HomeScreen: View {
 struct PaintingEditorPlaceholderView: View {
     let painting: Painting
 
+    @State private var document: PaintingDocument?
+    @State private var errorMessage: String?
+    @State private var showGrid = true
+    @State private var showNumbers = true
+
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "square.grid.3x3.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(.secondary)
+        VStack(spacing: 16) {
+            if let document {
+                PixelCanvasView(state: PixelCanvasRenderState(document: document, selectedPaletteColorID: document.palette.first?.id, showGrid: showGrid, showNumbers: showNumbers, scale: 1))
+                    .padding()
+
+                Toggle("Grid", isOn: $showGrid)
+                Toggle("Numbers", isOn: $showNumbers)
+            } else if let errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.red)
+            } else {
+                ProgressView("Loading canvas...")
+            }
 
             Text(painting.title)
                 .font(.title2.bold())
 
-            Text("Editor arrives in Phase 8.")
+            Text("Painting gestures arrive in Phase 8.")
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Editor")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            loadDocument()
+        }
+    }
+
+    private func loadDocument() {
+        do {
+            document = try PaintingStore().loadPaintingDocument(for: painting.id)
+            errorMessage = nil
+        } catch {
+            errorMessage = "This painting could not be loaded."
+        }
     }
 }

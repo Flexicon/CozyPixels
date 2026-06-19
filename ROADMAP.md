@@ -320,7 +320,7 @@ After creation, wrong attempts persist normally.
 
 ## Phase 7 — Canvas Rendering
 
-Status: pending
+Status: completed
 
 Create:
 
