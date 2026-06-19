@@ -206,7 +206,7 @@ Acceptance criteria:
 
 ## Phase 4 — Home Screen
 
-Status: pending
+Status: completed
 
 Create:
 

@@ -12,7 +12,7 @@ struct ContentView: View {
     var body: some View {
         TabView {
             NavigationStack {
-                HomePlaceholderView()
+                HomeScreen()
             }
             .tabItem {
                 Label("Home", systemImage: "square.grid.2x2")
@@ -25,17 +25,6 @@ struct ContentView: View {
                 Label("Gallery", systemImage: "photo.on.rectangle")
             }
         }
-    }
-}
-
-private struct HomePlaceholderView: View {
-    var body: some View {
-        ContentUnavailableView(
-            "No Paintings Yet",
-            systemImage: "paintpalette",
-            description: Text("Imported paintings will appear here.")
-        )
-        .navigationTitle("Home")
     }
 }
 
