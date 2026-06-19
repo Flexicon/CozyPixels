@@ -6,8 +6,11 @@
 //
 
 import Testing
+import CoreGraphics
 import Foundation
+import ImageIO
 import SwiftData
+import UniformTypeIdentifiers
 
 @testable import CozyPixels
 
@@ -169,6 +172,113 @@ struct CozyPixelsTests {
         #expect(FileManager.default.fileExists(atPath: store.directoryURL(for: paintingID).path) == false)
     }
 
+    @Test func paletteExtractorExtractsExactColorsAndPixelIDs() throws {
+        let extractor = PaletteExtractor()
+        let pixels = [
+            RGBAPixel(red: 255, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 0, green: 255, blue: 0, alpha: 255),
+            RGBAPixel(red: 255, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 0, green: 0, blue: 0, alpha: 0)
+        ]
+
+        let result = try extractor.extract(from: pixels)
+
+        #expect(result.palette.count == 2)
+        #expect(result.targetColorIndexByPixel[0] == result.targetColorIndexByPixel[2])
+        #expect(result.targetColorIndexByPixel[3] == 0)
+        #expect(result.paintablePixelCount == 3)
+    }
+
+    @Test func paletteExtractorSortsDeterministicallyByHueSaturationBrightnessAndRGB() throws {
+        let extractor = PaletteExtractor()
+        let pixels = [
+            RGBAPixel(red: 0, green: 0, blue: 255, alpha: 255),
+            RGBAPixel(red: 255, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 128, green: 128, blue: 128, alpha: 255),
+            RGBAPixel(red: 0, green: 255, blue: 0, alpha: 255)
+        ]
+
+        let result = try extractor.extract(from: pixels)
+
+        #expect(result.palette.map { [$0.red, $0.green, $0.blue] } == [
+            [128, 128, 128],
+            [255, 0, 0],
+            [0, 255, 0],
+            [0, 0, 255]
+        ])
+        #expect(result.palette.map(\.id) == [1, 2, 3, 4])
+    }
+
+    @Test func paletteExtractorRejectsTooManyColors() throws {
+        let extractor = PaletteExtractor(maxPaletteColors: 2)
+        let pixels = [
+            RGBAPixel(red: 1, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 2, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 3, green: 0, blue: 0, alpha: 255)
+        ]
+
+        do {
+            _ = try extractor.extract(from: pixels)
+            Issue.record("Expected too many colors error")
+        } catch PaletteExtractorError.tooManyColors(let count, let maximum) {
+            #expect(count == 3)
+            #expect(maximum == 2)
+        }
+    }
+
+    @Test func imageImportServiceImportsSmallPNGData() throws {
+        let data = try pngData(width: 2, height: 2, pixels: [
+            RGBAPixel(red: 255, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 0, green: 255, blue: 0, alpha: 255),
+            RGBAPixel(red: 0, green: 0, blue: 255, alpha: 255),
+            RGBAPixel(red: 0, green: 0, blue: 0, alpha: 0)
+        ])
+
+        let result = try ImageImportService().importImageData(data)
+
+        #expect(result.document.width == 2)
+        #expect(result.document.height == 2)
+        #expect(result.document.palette.count == 3)
+        #expect(result.document.targetColorIndexByPixel.count == 4)
+        #expect(result.document.targetColorIndexByPixel[3] == 0)
+        #expect(result.paintablePixelCount == 3)
+        #expect(result.exceedsRecommendedSize == false)
+    }
+
+    @Test func imageImportServiceFlagsImagesAboveRecommendedSize() throws {
+        let image = try cgImage(width: 129, height: 1, pixels: Array(repeating: RGBAPixel(red: 1, green: 2, blue: 3, alpha: 255), count: 129))
+
+        let result = try ImageImportService().importCGImage(image)
+
+        #expect(result.exceedsRecommendedSize)
+    }
+
+    @Test func imageImportServiceRejectsOversizedImages() throws {
+        let image = try cgImage(width: 257, height: 1, pixels: Array(repeating: RGBAPixel(red: 1, green: 2, blue: 3, alpha: 255), count: 257))
+
+        do {
+            _ = try ImageImportService().importCGImage(image)
+            Issue.record("Expected oversized image error")
+        } catch ImageImportError.imageTooLarge(let width, let height, let maximum) {
+            #expect(width == 257)
+            #expect(height == 1)
+            #expect(maximum == 256)
+        }
+    }
+
+    @Test func imageImportServiceRejectsTooManyColors() throws {
+        let pixels = (0..<65).map { RGBAPixel(red: UInt8($0), green: 0, blue: 0, alpha: 255) }
+        let image = try cgImage(width: 65, height: 1, pixels: pixels)
+
+        do {
+            _ = try ImageImportService().importCGImage(image)
+            Issue.record("Expected too many colors error")
+        } catch ImageImportError.tooManyColors(let count, let maximum) {
+            #expect(count == 65)
+            #expect(maximum == 64)
+        }
+    }
+
 }
 
 private func samplePaintingDocument() -> PaintingDocument {
@@ -193,4 +303,44 @@ private func temporaryDirectory() throws -> URL {
         .appending(path: UUID().uuidString, directoryHint: .isDirectory)
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     return url
+}
+
+private func cgImage(width: Int, height: Int, pixels: [RGBAPixel]) throws -> CGImage {
+    #expect(pixels.count == width * height)
+    let bytesPerPixel = 4
+    let bytesPerRow = width * bytesPerPixel
+    var bytes = [UInt8]()
+    bytes.reserveCapacity(pixels.count * bytesPerPixel)
+
+    for pixel in pixels {
+        bytes.append(pixel.red)
+        bytes.append(pixel.green)
+        bytes.append(pixel.blue)
+        bytes.append(pixel.alpha)
+    }
+
+    let provider = CGDataProvider(data: Data(bytes) as CFData)
+    let image = CGImage(
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bitsPerPixel: 32,
+        bytesPerRow: bytesPerRow,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),
+        provider: try #require(provider),
+        decode: nil,
+        shouldInterpolate: false,
+        intent: .defaultIntent
+    )
+
+    return try #require(image)
+}
+
+private func pngData(width: Int, height: Int, pixels: [RGBAPixel]) throws -> Data {
+    let data = NSMutableData()
+    let destination = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil)
+    CGImageDestinationAddImage(try #require(destination), try cgImage(width: width, height: height, pixels: pixels), nil)
+    #expect(CGImageDestinationFinalize(try #require(destination)))
+    return data as Data
 }

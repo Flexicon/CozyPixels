@@ -161,7 +161,7 @@ Acceptance criteria:
 
 ## Phase 3 — Image Import and Parsing
 
-Status: pending
+Status: completed
 
 Create:
 
