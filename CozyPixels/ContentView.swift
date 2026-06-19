@@ -9,49 +9,44 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
+        TabView {
+            NavigationStack {
+                HomePlaceholderView()
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
+            .tabItem {
+                Label("Home", systemImage: "square.grid.2x2")
             }
-        } detail: {
-            Text("Select an item")
+
+            NavigationStack {
+                GalleryPlaceholderView()
+            }
+            .tabItem {
+                Label("Gallery", systemImage: "photo.on.rectangle")
+            }
         }
     }
+}
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
+private struct HomePlaceholderView: View {
+    var body: some View {
+        ContentUnavailableView(
+            "No Paintings Yet",
+            systemImage: "paintpalette",
+            description: Text("Imported paintings will appear here.")
+        )
+        .navigationTitle("Home")
     }
+}
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
-        }
+private struct GalleryPlaceholderView: View {
+    var body: some View {
+        ContentUnavailableView(
+            "Gallery Coming Soon",
+            systemImage: "sparkles.rectangle.stack",
+            description: Text("Bundled pixel art examples will appear here.")
+        )
+        .navigationTitle("Gallery")
     }
 }
 
