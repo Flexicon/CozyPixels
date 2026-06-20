@@ -26,7 +26,7 @@ nonisolated struct PaletteExtractionResult: Equatable, Sendable {
 }
 
 nonisolated struct PaletteExtractor: Sendable {
-    static let defaultMaxPaletteColors = 64
+    static let defaultMaxPaletteColors = 32
 
     let maxPaletteColors: Int
 

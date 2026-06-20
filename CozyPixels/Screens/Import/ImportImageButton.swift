@@ -2,6 +2,7 @@ import PhotosUI
 import SwiftData
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct ImportImageButton: View {
     @Environment(\.modelContext) private var modelContext
@@ -10,9 +11,20 @@ struct ImportImageButton: View {
     @State private var errorMessage: String?
     @State private var isImporting = false
     @State private var createdPainting: Painting?
+    @State private var isFileImporterPresented = false
 
     var body: some View {
-        PhotosPicker(selection: $selectedItem, matching: .images) {
+        Menu {
+            PhotosPicker(selection: $selectedItem, matching: .images) {
+                Label("Photos", systemImage: "photo.on.rectangle")
+            }
+
+            Button {
+                isFileImporterPresented = true
+            } label: {
+                Label("Files", systemImage: "folder")
+            }
+        } label: {
             Label("Import", systemImage: "square.and.arrow.down")
         }
         .disabled(isImporting)
@@ -20,6 +32,11 @@ struct ImportImageButton: View {
             guard let newValue else { return }
             Task {
                 await importImage(from: newValue)
+            }
+        }
+        .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: [.image], allowsMultipleSelection: false) { result in
+            Task {
+                await importImage(from: result)
             }
         }
         .alert("Import Failed", isPresented: errorBinding) {
@@ -67,6 +84,29 @@ struct ImportImageButton: View {
     }
 
     @MainActor
+    private func importImage(from result: Result<[URL], Error>) async {
+        isImporting = true
+        defer { isImporting = false }
+
+        do {
+            let urls = try result.get()
+            guard let url = urls.first else { return }
+
+            let hasSecurityScope = url.startAccessingSecurityScopedResource()
+            defer {
+                if hasSecurityScope {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            let data = try Data(contentsOf: url)
+            importResult = try ImageImportService().importImageData(data)
+        } catch {
+            errorMessage = message(for: error)
+        }
+    }
+
+    @MainActor
     private func createPainting(title: String, from result: ImageImportResult) async throws {
         let now = Date()
         let painting = Painting(
@@ -102,10 +142,12 @@ struct ImportImageButton: View {
             return "This image has invalid dimensions: \(width) x \(height)."
         case ImageImportError.imageTooLarge(let width, let height, let maximum):
             return "This image is \(width) x \(height). The maximum supported size is \(maximum) x \(maximum)."
+        case ImageImportError.sourceImageTooLarge(let width, let height, let maximumLongestSide, let maximumShortestSide):
+            return "This image is \(width) x \(height). Choose an image no larger than \(maximumLongestSide) pixels on its longest side and \(maximumShortestSide) pixels on its shortest side."
         case ImageImportError.tooManyColors(let count, let maximum):
             return "This image has \(count) colors. CozyPixels supports up to \(maximum) exact colors for now."
         default:
-            return "The selected image could not be imported. Try a smaller pixel-art PNG or JPG."
+            return "The selected image could not be imported. Choose a PNG, JPG, HEIC, or another raster image supported by iOS."
         }
     }
 }
@@ -116,6 +158,6 @@ private enum ImportCreationError: Error {
 
 extension ImageImportResult: Identifiable {
     var id: String {
-        "\(document.width)x\(document.height)-\(document.palette.count)-\(paintablePixelCount)"
+        "\(originalWidth)x\(originalHeight)-\(document.width)x\(document.height)-\(document.palette.count)-\(paintablePixelCount)-\(wasQuantized)"
     }
 }

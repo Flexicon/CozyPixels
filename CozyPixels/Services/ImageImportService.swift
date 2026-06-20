@@ -6,6 +6,7 @@ nonisolated enum ImageImportError: Error, Equatable, Sendable {
     case unsupportedImageData
     case invalidDimensions(width: Int, height: Int)
     case imageTooLarge(width: Int, height: Int, maximum: Int)
+    case sourceImageTooLarge(width: Int, height: Int, maximumLongestSide: Int, maximumShortestSide: Int)
     case cannotCreateBitmapContext
     case cannotReadPixels
     case tooManyColors(count: Int, maximum: Int)
@@ -15,24 +16,39 @@ nonisolated struct ImageImportResult: Equatable, Sendable {
     var document: PaintingDocument
     var exceedsRecommendedSize: Bool
     var paintablePixelCount: Int
+    var originalWidth: Int
+    var originalHeight: Int
+    var wasResized: Bool
+    var wasQuantized: Bool
 }
 
 nonisolated struct ImageImportService: Sendable {
-    static let recommendedMaxDimension = 128
-    static let hardMaxDimension = 256
+    static let recommendedMaxDimension = 64
+    static let hardMaxDimension = 64
+    static let maximumSourceLongestSide = 2560
+    static let maximumSourceShortestSide = 1440
 
     let recommendedMaxDimension: Int
     let hardMaxDimension: Int
+    let maximumSourceLongestSide: Int
+    let maximumSourceShortestSide: Int
     let paletteExtractor: PaletteExtractor
+    let colorQuantizer: ColorQuantizer
 
     init(
         recommendedMaxDimension: Int = Self.recommendedMaxDimension,
         hardMaxDimension: Int = Self.hardMaxDimension,
-        paletteExtractor: PaletteExtractor = PaletteExtractor()
+        maximumSourceLongestSide: Int = Self.maximumSourceLongestSide,
+        maximumSourceShortestSide: Int = Self.maximumSourceShortestSide,
+        paletteExtractor: PaletteExtractor = PaletteExtractor(),
+        colorQuantizer: ColorQuantizer = ColorQuantizer()
     ) {
         self.recommendedMaxDimension = recommendedMaxDimension
         self.hardMaxDimension = hardMaxDimension
+        self.maximumSourceLongestSide = maximumSourceLongestSide
+        self.maximumSourceShortestSide = maximumSourceShortestSide
         self.paletteExtractor = paletteExtractor
+        self.colorQuantizer = colorQuantizer
     }
 
     func importImageData(_ data: Data) throws -> ImageImportResult {
@@ -45,36 +61,70 @@ nonisolated struct ImageImportService: Sendable {
     }
 
     func importCGImage(_ image: CGImage) throws -> ImageImportResult {
-        let width = image.width
-        let height = image.height
+        let originalWidth = image.width
+        let originalHeight = image.height
 
-        guard width > 0, height > 0 else {
-            throw ImageImportError.invalidDimensions(width: width, height: height)
+        guard originalWidth > 0, originalHeight > 0 else {
+            throw ImageImportError.invalidDimensions(width: originalWidth, height: originalHeight)
         }
 
-        guard width <= hardMaxDimension, height <= hardMaxDimension else {
-            throw ImageImportError.imageTooLarge(width: width, height: height, maximum: hardMaxDimension)
+        let sourceLongestSide = max(originalWidth, originalHeight)
+        let sourceShortestSide = min(originalWidth, originalHeight)
+        guard sourceLongestSide <= maximumSourceLongestSide, sourceShortestSide <= maximumSourceShortestSide else {
+            throw ImageImportError.sourceImageTooLarge(
+                width: originalWidth,
+                height: originalHeight,
+                maximumLongestSide: maximumSourceLongestSide,
+                maximumShortestSide: maximumSourceShortestSide
+            )
         }
 
-        let pixels = try rgbaPixels(from: image, width: width, height: height)
+        let outputSize = outputSize(forWidth: originalWidth, height: originalHeight)
+        let pixels = try rgbaPixels(from: image, width: outputSize.width, height: outputSize.height)
+        let wasResized = outputSize.width != originalWidth || outputSize.height != originalHeight
 
         do {
-            let extraction = try paletteExtractor.extract(from: pixels)
+            let extraction = try extraction(from: pixels)
             let document = PaintingDocument(
-                width: width,
-                height: height,
+                width: outputSize.width,
+                height: outputSize.height,
                 palette: extraction.palette,
                 targetColorIndexByPixel: extraction.targetColorIndexByPixel,
-                correctPaintedBitset: Bitset(bitCount: width * height).data
+                correctPaintedBitset: Bitset(bitCount: outputSize.width * outputSize.height).data
             )
 
             return ImageImportResult(
                 document: document,
-                exceedsRecommendedSize: width > recommendedMaxDimension || height > recommendedMaxDimension,
-                paintablePixelCount: extraction.paintablePixelCount
+                exceedsRecommendedSize: outputSize.width > recommendedMaxDimension || outputSize.height > recommendedMaxDimension,
+                paintablePixelCount: extraction.paintablePixelCount,
+                originalWidth: originalWidth,
+                originalHeight: originalHeight,
+                wasResized: wasResized,
+                wasQuantized: extraction.wasQuantized
             )
         } catch PaletteExtractorError.tooManyColors(let count, let maximum) {
             throw ImageImportError.tooManyColors(count: count, maximum: maximum)
+        }
+    }
+
+    private func outputSize(forWidth width: Int, height: Int) -> (width: Int, height: Int) {
+        guard width > hardMaxDimension || height > hardMaxDimension else { return (width, height) }
+
+        let scale = Double(hardMaxDimension) / Double(max(width, height))
+        return (
+            max(1, Int((Double(width) * scale).rounded())),
+            max(1, Int((Double(height) * scale).rounded()))
+        )
+    }
+
+    private func extraction(from pixels: [RGBAPixel]) throws -> (palette: [PaletteColor], targetColorIndexByPixel: [UInt16], paintablePixelCount: Int, wasQuantized: Bool) {
+        do {
+            let extraction = try paletteExtractor.extract(from: pixels)
+            return (extraction.palette, extraction.targetColorIndexByPixel, extraction.paintablePixelCount, false)
+        } catch PaletteExtractorError.tooManyColors {
+            let quantizedPixels = colorQuantizer.quantize(pixels, maxColors: paletteExtractor.maxPaletteColors)
+            let extraction = try paletteExtractor.extract(from: quantizedPixels)
+            return (extraction.palette, extraction.targetColorIndexByPixel, extraction.paintablePixelCount, true)
         }
     }
 

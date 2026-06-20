@@ -71,15 +71,20 @@ No backend or CMS for MVP.
 
 ### Drawing Size Limits
 
-Hard cap: `256x256`.
+Playable import hard cap: `64x64`.
 
-Recommended default import cap: `128x128`.
+Accepted source images may be larger than the playable canvas up to an orientation-independent source limit:
+
+* Longest source side: `2560`
+* Shortest source side: `1440`
+
+Recommended default import cap: `64x64`.
 
 Behavior:
 
-* Images up to `128x128` should import directly.
-* Images between `129x129` and `256x256` may import, but the UI should warn that large drawings may be slower or harder to paint.
-* Images above `256x256` must be rejected or resized through an explicit import flow.
+* Images up to `64x64` should import directly.
+* Images above `64x64` should be resized down into the playable `64x64` limit while preserving aspect ratio.
+* Source images above the source limit must be rejected.
 * Never create one SwiftUI view per pixel.
 
 ### Palette Extraction
@@ -101,20 +106,19 @@ Suggested palette sorting:
 
 Each palette color receives a stable number starting at `1`.
 
-If exact color count is too high, block import with a clear message.
+If exact color count is too high after resizing, quantize paintable pixels to the palette limit.
 
 Default MVP threshold:
 
 ```txt
-maxPaletteColors = 64
+maxPaletteColors = 32
 ```
 
 Optional later behavior:
 
-* Add import-time quantization.
-* Let user choose palette size: `8`, `16`, `24`, `32`, `48`, `64`.
+* Let user choose palette size: `8`, `16`, `24`, `32`.
 
-Do not build quantization unless the core MVP is complete.
+Keep quantization deterministic and preserve fully transparent pixels as background/empty.
 
 ## Data Model
 
@@ -532,7 +536,7 @@ MVP is complete when:
 
 * User can import a pixel-art PNG/JPG.
 * App parses dimensions and palette.
-* App rejects images larger than `256x256`.
+* App resizes accepted large source images into the `64x64` playable import limit.
 * App rejects images with too many exact colors.
 * Imported image appears on the home screen immediately.
 * Home screen shows a progress preview, not the original image.

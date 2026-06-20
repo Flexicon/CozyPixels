@@ -14,9 +14,22 @@ struct ImportReviewScreen: View {
             Form {
                 Section("Painting") {
                     TextField("Title", text: $title)
-                    LabeledContent("Size", value: "\(result.document.width) x \(result.document.height)")
+                    if result.wasResized {
+                        LabeledContent("Original Size", value: "\(result.originalWidth) x \(result.originalHeight)")
+                    }
+                    LabeledContent("Final Size", value: "\(result.document.width) x \(result.document.height)")
                     LabeledContent("Colors", value: "\(result.document.palette.count)")
                     LabeledContent("Paintable Pixels", value: "\(result.paintablePixelCount)")
+                }
+
+                if result.wasResized || result.wasQuantized {
+                    Section {
+                        Label("This image was pixelated into a playable painting.", systemImage: "wand.and.sparkles")
+                        if result.wasQuantized {
+                            Text("Colors were simplified to fit the 32-color palette limit.")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
                 if result.exceedsRecommendedSize {

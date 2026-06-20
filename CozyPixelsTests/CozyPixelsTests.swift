@@ -243,40 +243,114 @@ struct CozyPixelsTests {
         #expect(result.document.targetColorIndexByPixel[3] == 0)
         #expect(result.paintablePixelCount == 3)
         #expect(result.exceedsRecommendedSize == false)
+        #expect(result.originalWidth == 2)
+        #expect(result.originalHeight == 2)
+        #expect(result.wasResized == false)
+        #expect(result.wasQuantized == false)
     }
 
-    @Test func imageImportServiceFlagsImagesAboveRecommendedSize() throws {
-        let image = try cgImage(width: 129, height: 1, pixels: Array(repeating: RGBAPixel(red: 1, green: 2, blue: 3, alpha: 255), count: 129))
+    @Test func imageImportServiceResizesLandscapeImageToPlayableLimit() throws {
+        let image = try solidCGImage(width: 1280, height: 720)
 
         let result = try ImageImportService().importCGImage(image)
 
-        #expect(result.exceedsRecommendedSize)
+        #expect(result.document.width == 64)
+        #expect(result.document.height == 36)
+        #expect(result.originalWidth == 1280)
+        #expect(result.originalHeight == 720)
+        #expect(result.wasResized)
     }
 
-    @Test func imageImportServiceRejectsOversizedImages() throws {
-        let image = try cgImage(width: 257, height: 1, pixels: Array(repeating: RGBAPixel(red: 1, green: 2, blue: 3, alpha: 255), count: 257))
+    @Test func imageImportServiceResizesPortraitImageToPlayableLimit() throws {
+        let image = try solidCGImage(width: 720, height: 1280)
+
+        let result = try ImageImportService().importCGImage(image)
+
+        #expect(result.document.width == 36)
+        #expect(result.document.height == 64)
+        #expect(result.wasResized)
+    }
+
+    @Test func imageImportServiceDoesNotResizeImagesWithinPlayableLimit() throws {
+        let image = try solidCGImage(width: 60, height: 50)
+
+        let result = try ImageImportService().importCGImage(image)
+
+        #expect(result.document.width == 60)
+        #expect(result.document.height == 50)
+        #expect(result.wasResized == false)
+    }
+
+    @Test func imageImportServiceResizesImagesAboveNewPlayableLimit() throws {
+        let image = try solidCGImage(width: 128, height: 128)
+
+        let result = try ImageImportService().importCGImage(image)
+
+        #expect(result.document.width == 64)
+        #expect(result.document.height == 64)
+        #expect(result.wasResized)
+    }
+
+    @Test func imageImportServiceDoesNotFlagResizedImagesAtRecommendedSize() throws {
+        let image = try cgImage(width: 65, height: 1, pixels: Array(repeating: RGBAPixel(red: 1, green: 2, blue: 3, alpha: 255), count: 65))
+
+        let result = try ImageImportService().importCGImage(image)
+
+        #expect(result.document.width == 64)
+        #expect(result.exceedsRecommendedSize == false)
+    }
+
+    @Test func imageImportServiceRejectsImagesAboveSourceLimit() throws {
+        let image = try solidCGImage(width: 4032, height: 3024)
 
         do {
             _ = try ImageImportService().importCGImage(image)
             Issue.record("Expected oversized image error")
-        } catch ImageImportError.imageTooLarge(let width, let height, let maximum) {
-            #expect(width == 257)
-            #expect(height == 1)
-            #expect(maximum == 256)
+        } catch ImageImportError.sourceImageTooLarge(let width, let height, let maximumLongestSide, let maximumShortestSide) {
+            #expect(width == 4032)
+            #expect(height == 3024)
+            #expect(maximumLongestSide == 2560)
+            #expect(maximumShortestSide == 1440)
         }
     }
 
-    @Test func imageImportServiceRejectsTooManyColors() throws {
-        let pixels = (0..<65).map { RGBAPixel(red: UInt8($0), green: 0, blue: 0, alpha: 255) }
-        let image = try cgImage(width: 65, height: 1, pixels: pixels)
+    @Test func imageImportServiceQuantizesTooManyColors() throws {
+        let pixels = (0..<33).map { RGBAPixel(red: UInt8($0), green: 0, blue: 0, alpha: 255) }
+        let image = try cgImage(width: 33, height: 1, pixels: pixels)
 
-        do {
-            _ = try ImageImportService().importCGImage(image)
-            Issue.record("Expected too many colors error")
-        } catch ImageImportError.tooManyColors(let count, let maximum) {
-            #expect(count == 65)
-            #expect(maximum == 64)
-        }
+        let result = try ImageImportService().importCGImage(image)
+
+        #expect(result.document.palette.count <= 32)
+        #expect(result.wasQuantized)
+    }
+
+    @Test func imageImportServiceKeepsTransparentPixelsUnpaintableAfterQuantization() throws {
+        var pixels = (0..<33).map { RGBAPixel(red: UInt8($0), green: 0, blue: 0, alpha: 255) }
+        pixels.append(RGBAPixel(red: 255, green: 255, blue: 255, alpha: 0))
+        let image = try cgImage(width: 34, height: 1, pixels: pixels)
+
+        let result = try ImageImportService().importCGImage(image)
+
+        #expect(result.document.targetColorIndexByPixel[33] == 0)
+        #expect(result.paintablePixelCount == 33)
+    }
+
+    @Test func colorQuantizerIsDeterministic() {
+        let pixels = variedPixels(count: 80)
+        let quantizer = ColorQuantizer()
+
+        #expect(quantizer.quantize(pixels, maxColors: 16) == quantizer.quantize(pixels, maxColors: 16))
+    }
+
+    @Test func colorQuantizerKeepsLowColorPixelArtUnchanged() {
+        let pixels = [
+            RGBAPixel(red: 255, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 0, green: 255, blue: 0, alpha: 255),
+            RGBAPixel(red: 255, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 0, green: 0, blue: 0, alpha: 0)
+        ]
+
+        #expect(ColorQuantizer().quantize(pixels, maxColors: 32) == pixels)
     }
 
     @Test func canvasTransformMapsScreenPointToPixel() {
@@ -478,6 +552,28 @@ private func cgImage(width: Int, height: Int, pixels: [RGBAPixel]) throws -> CGI
     )
 
     return try #require(image)
+}
+
+private func solidCGImage(width: Int, height: Int) throws -> CGImage {
+    try cgImage(
+        width: width,
+        height: height,
+        pixels: Array(repeating: RGBAPixel(red: 1, green: 2, blue: 3, alpha: 255), count: width * height)
+    )
+}
+
+private func variedPixels(count: Int) -> [RGBAPixel] {
+    var pixels = [RGBAPixel]()
+    pixels.reserveCapacity(count)
+    for index in 0..<count {
+        pixels.append(RGBAPixel(
+            red: UInt8((index * 3) % 256),
+            green: UInt8((index * 5) % 256),
+            blue: UInt8((index * 7) % 256),
+            alpha: 255
+        ))
+    }
+    return pixels
 }
 
 private func pngData(width: Int, height: Int, pixels: [RGBAPixel]) throws -> Data {

@@ -17,9 +17,9 @@ Implemented:
 * File-backed painting documents under Application Support.
 * JSON `PaintingDocument` blobs with palette, target grid, completed bitset, and wrong attempts.
 * Photo import through PhotosUI.
-* ImageIO/CoreGraphics decoding and RGBA8 normalization.
-* Exact color palette extraction with deterministic sorting.
-* Import validation for maximum dimensions and palette size.
+* ImageIO/CoreGraphics decoding, RGBA8 normalization, and large-source pixelation into the `64x64` playable import limit.
+* Exact color palette extraction with deterministic sorting and import-time quantization to 32 colors when needed.
+* Import validation for source dimensions and playable output size.
 * Cached progress previews generated from painting state, not original images.
 * Home grid sorted by `updatedAt` with progress cards, reset, and delete support.
 * Bundled gallery manifest and gallery search.
@@ -71,9 +71,9 @@ Tasks:
 * Test bundled gallery start flow.
 * Test app relaunch after painting correct and wrong cells.
 * Test delete behavior removes SwiftData metadata and files.
-* Test large accepted images in the `129...256` range.
-* Test rejection for images above `256x256`.
-* Test rejection for images above `64` exact colors.
+* Test large accepted source images that resize into the `64x64` playable import limit.
+* Test rejection for source images above `2560` longest side or `1440` shortest side.
+* Test quantization for images above `32` exact colors.
 
 Acceptance criteria:
 
@@ -86,16 +86,16 @@ Status: pending
 
 Tasks:
 
-* Profile editor rendering at `128x128` and `256x256` in Instruments.
+* Profile editor rendering at `64x64` in Instruments.
 * Profile drag-paint responsiveness with numbers enabled and disabled.
 * Profile preview generation after completed strokes.
 * Check home grid scrolling with many paintings.
-* Record rough JSON blob sizes for `128x128` and `256x256` documents.
+* Record rough JSON blob sizes for `64x64` documents.
 
 Acceptance criteria:
 
-* `128x128` drawings feel smooth on target iPad hardware.
-* `256x256` drawings remain usable, even if less comfortable.
+* `64x64` drawings feel smooth on target iPad hardware.
+* Larger source imports remain usable after resizing to `64x64` or smaller.
 * No further renderer rewrite is needed for MVP.
 
 ### 4. Persistence and Recovery Polish
@@ -137,9 +137,8 @@ Do not start these until release hardening is complete unless a specific item be
 
 ### Import Improvements
 
-* Optional quantization.
-* User-selectable palette size: `8`, `16`, `24`, `32`, `48`, `64`.
-* Resize/crop import review for oversized images.
+* User-selectable palette size: `8`, `16`, `24`, `32`.
+* Crop/reposition import review for resized images.
 * Better JPG cleanup.
 * Transparent pixel options.
 
@@ -183,8 +182,8 @@ Do not start these until release hardening is complete unless a specific item be
 * Export or sharing.
 * Social features.
 * In-app purchases.
-* Advanced quantization.
-* Full photo-to-paint-by-number conversion.
+* Advanced quantization controls.
+* Full photo-to-paint-by-number conversion beyond automatic pixelation and 32-color quantization.
 * PencilKit freehand drawing.
 * Third-party image decoding, persistence, gestures, grid rendering, or palette extraction.
 
