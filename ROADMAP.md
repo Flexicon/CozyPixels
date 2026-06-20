@@ -368,7 +368,7 @@ Acceptance criteria:
 
 ## Phase 8 — Editor Gestures and Painting
 
-Status: pending
+Status: completed
 
 Create:
 

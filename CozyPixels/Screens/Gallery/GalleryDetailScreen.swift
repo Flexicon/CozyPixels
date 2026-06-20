@@ -55,7 +55,7 @@ struct GalleryDetailScreen: View {
         .navigationTitle(item.title)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $createdPainting) { painting in
-            PaintingEditorPlaceholderView(painting: painting)
+            PaintingEditorScreen(painting: painting)
         }
         .task {
             loadDocument()

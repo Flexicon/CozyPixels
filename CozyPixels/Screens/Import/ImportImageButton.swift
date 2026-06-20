@@ -33,7 +33,7 @@ struct ImportImageButton: View {
             }
         }
         .navigationDestination(item: $createdPainting) { painting in
-            PaintingEditorPlaceholderView(painting: painting)
+            PaintingEditorScreen(painting: painting)
         }
     }
 
