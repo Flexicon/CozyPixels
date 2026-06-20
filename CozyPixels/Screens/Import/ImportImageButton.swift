@@ -84,7 +84,7 @@ struct ImportImageButton: View {
 
         let store = try PaintingStore()
         try store.savePaintingDocument(result.document, for: painting.id)
-        if let previewData = InitialImportPreviewRenderer().pngData(for: result.document) {
+        if let previewData = PreviewRenderer().pngData(for: result.document) {
             try store.savePreviewPNG(previewData, for: painting.id)
         }
 
@@ -112,29 +112,5 @@ struct ImportImageButton: View {
 extension ImageImportResult: Identifiable {
     var id: String {
         "\(document.width)x\(document.height)-\(document.palette.count)-\(paintablePixelCount)"
-    }
-}
-
-struct InitialImportPreviewRenderer {
-    func pngData(for document: PaintingDocument) -> Data? {
-        let scale = max(1, min(12, 512 / max(document.width, document.height)))
-        let size = CGSize(width: document.width * scale, height: document.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: size)
-
-        return renderer.pngData { context in
-            UIColor.systemBackground.setFill()
-            context.fill(CGRect(origin: .zero, size: size))
-
-            for y in 0..<document.height {
-                for x in 0..<document.width {
-                    let pixelIndex = y * document.width + x
-                    let paletteID = document.targetColorIndexByPixel[pixelIndex]
-                    guard paletteID != 0 else { continue }
-
-                    UIColor(white: 0.82, alpha: 1).setFill()
-                    context.fill(CGRect(x: x * scale, y: y * scale, width: scale, height: scale))
-                }
-            }
-        }
     }
 }

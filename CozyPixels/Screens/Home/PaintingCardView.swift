@@ -3,6 +3,8 @@ import SwiftUI
 struct PaintingCardView: View {
     let painting: Painting
 
+    @State private var regeneratedPreviewImage: UIImage?
+
     private var progress: Double {
         guard painting.totalPaintablePixelCount > 0 else { return 0 }
         return Double(painting.completedPixelCount) / Double(painting.totalPaintablePixelCount)
@@ -55,8 +57,18 @@ struct PaintingCardView: View {
                 .scaledToFit()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.secondarySystemBackground))
+        } else if let regeneratedPreviewImage {
+            Image(uiImage: regeneratedPreviewImage)
+                .resizable()
+                .interpolation(.none)
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(.secondarySystemBackground))
         } else {
             PlaceholderPreview(progress: progress, isCompleted: painting.isCompleted)
+                .task(id: painting.updatedAt) {
+                    regeneratedPreviewImage = await regenerateMissingPreviewImage()
+                }
         }
     }
 
@@ -65,6 +77,19 @@ struct PaintingCardView: View {
         guard let store = try? PaintingStore() else { return nil }
         let url = store.previewURL(for: painting.id)
         return UIImage(contentsOfFile: url.path)
+    }
+
+    private func regenerateMissingPreviewImage() async -> UIImage? {
+        let paintingID = painting.id
+
+        return await Task.detached(priority: .utility) { () -> UIImage? in
+            guard let store = try? PaintingStore() else { return nil }
+            guard let document = try? store.loadPaintingDocument(for: paintingID) else { return nil }
+            guard let previewData = PreviewRenderer().pngData(for: document) else { return nil }
+
+            try? store.savePreviewPNG(previewData, for: paintingID)
+            return UIImage(data: previewData)
+        }.value
     }
 }
 

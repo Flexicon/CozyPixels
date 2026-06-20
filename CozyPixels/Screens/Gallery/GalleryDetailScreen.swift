@@ -153,7 +153,7 @@ struct GalleryDetailScreen: View {
 
             let paintingStore = try PaintingStore()
             try paintingStore.savePaintingDocument(document, for: painting.id)
-            if let previewData = InitialImportPreviewRenderer().pngData(for: document) {
+            if let previewData = PreviewRenderer().pngData(for: document) {
                 try paintingStore.savePreviewPNG(previewData, for: painting.id)
             }
 

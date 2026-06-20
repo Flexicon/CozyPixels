@@ -426,7 +426,7 @@ Acceptance criteria:
 
 ## Phase 9 — Preview Renderer
 
-Status: pending
+Status: completed
 
 Create:
 

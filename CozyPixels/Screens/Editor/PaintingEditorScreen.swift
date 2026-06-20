@@ -18,6 +18,7 @@ struct PaintingEditorScreen: View {
     @State private var resetConfirmationPresented = false
 
     private let store = try? PaintingStore()
+    private let previewRenderer = PreviewRenderer()
     private let minScale: CGFloat = 0.5
     private let maxScale: CGFloat = 24
 
@@ -118,7 +119,7 @@ struct PaintingEditorScreen: View {
                 .onEnded { _ in
                     if let currentStroke, !currentStroke.changes.isEmpty {
                         strokeHistory.append(currentStroke)
-                        persistDocument()
+                        persistDocument(updatePreview: true)
                     }
                     currentStroke = nil
                     processedPixelsInStroke.removeAll()
@@ -203,7 +204,7 @@ struct PaintingEditorScreen: View {
         painting.updatedAt = Date()
         painting.isCompleted = painting.completedPixelCount >= painting.totalPaintablePixelCount
         document = currentDocument
-        persistDocument()
+        persistDocument(updatePreview: true)
     }
 
     private func resetPainting() {
@@ -216,14 +217,18 @@ struct PaintingEditorScreen: View {
         painting.updatedAt = Date()
         document = currentDocument
         strokeHistory.removeAll()
-        persistDocument()
+        persistDocument(updatePreview: true)
     }
 
-    private func persistDocument() {
+    private func persistDocument(updatePreview: Bool = false) {
         guard let document, let store else { return }
 
         do {
             try store.savePaintingDocument(document, for: painting.id)
+            if updatePreview, let previewData = previewRenderer.pngData(for: document) {
+                try store.savePreviewPNG(previewData, for: painting.id)
+                painting.previewFilename = PaintingStore.previewFilename
+            }
             try modelContext.save()
         } catch {
             errorMessage = "Your latest change could not be saved."

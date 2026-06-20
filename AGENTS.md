@@ -14,6 +14,7 @@ The app is Apple-device-first. Do not introduce cross-platform frameworks.
 * Use SwiftUI.
 * Target iOS/iPadOS latest stable SDK.
 * Minimum OS can be iOS/iPadOS 17 or newer.
+* When running `xcodebuild`, use a simulator `id=...` destination from the available destinations list instead of simulator `name=...`; duplicate simulator names across OS versions make name-based destinations unreliable in this workspace.
 * Optimize primarily for:
 
   * latest iPad Air
