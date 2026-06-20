@@ -54,6 +54,8 @@ struct PaintingEditorScreen: View {
                             ),
                             transform: transform
                         )
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .contentShape(Rectangle())
                         .gesture(canvasGesture(canvasSize: proxy.size, document: document))
                     } else if let errorMessage {
                         ContentUnavailableView("Editor Unavailable", systemImage: "exclamationmark.triangle", description: Text(errorMessage))
