@@ -10,6 +10,8 @@ Commenting out `drawNumbers` not helping much is consistent with the current ren
 
 ### 1. Full redraw on every pan tick
 
+Status: completed
+
 `PaintingEditorScreen.handlePan` mutates `@State transform.offset` for every `.changed` event. Because the transform is part of `PixelCanvasView`, every event re-enters SwiftUI diffing and re-executes the `Canvas` renderer.
 
 At `64x64`, a full-screen fit can draw all 4096 cells every frame. At high zoom, the visible range is smaller, but the frame still pays SwiftUI invalidation and setup costs.
@@ -27,6 +29,8 @@ Likely fix direction:
 - If staying with `Canvas`, cache expensive render inputs outside the draw closure.
 
 ### 2. Per-frame rebuilding of derived state
+
+Status: pending
 
 `PixelCanvasRenderer.render` rebuilds these every frame:
 
@@ -46,6 +50,8 @@ Likely fix direction:
 
 ### 3. Thousands of path/color operations per frame
 
+Status: pending
+
 `drawPixels` creates a `CGRect`, `Path(rect)`, and fill operation for each visible paintable pixel. A full 64x64 viewport means up to 4096 path creations and fills per frame, plus color bridging through `targetColor.swiftUIColor`.
 
 This remains true after disabling numbers. The base cells are likely the dominant path if numbers are off.
@@ -59,6 +65,8 @@ Likely fix direction:
 - Update only affected bitmap pixels after painting, not every pan frame.
 
 ### 4. Grid is drawn even when UI state says grid is hidden
+
+Status: pending
 
 `PixelCanvasRenderState` includes `showGrid`, but `render` currently draws the grid whenever `!isCompleted && geometry.cellSize >= 3`:
 
@@ -78,6 +86,8 @@ Likely fix direction:
 
 ### 5. Canvas size may force large backing work
 
+Status: pending
+
 The `Canvas` is full-screen. On iPad, the backing render target can be several million physical pixels. Even if only 4096 logical cells are drawn, compositing a full-screen transparent/SwiftUI canvas can be expensive, especially while updating at gesture frequency.
 
 Likely fix direction:
@@ -90,6 +100,8 @@ Likely fix direction:
 ## Medium-Probability Causes
 
 ### 6. SwiftUI parent body recomputation during pan
+
+Status: pending
 
 Every `transform` update re-evaluates `PaintingEditorScreen.body`. That can recompute non-canvas views too. The palette bar receives count dictionaries from functions in body:
 
@@ -108,6 +120,8 @@ Likely fix direction:
 
 ### 7. `Canvas` may not be the best fit for mutable pixel art
 
+Status: pending
+
 `Canvas` is convenient, but it still executes a drawing closure in response to SwiftUI invalidation. Pixel art panning is closer to moving/scaling a texture than redrawing vector content.
 
 Likely fix direction:
@@ -117,6 +131,8 @@ Likely fix direction:
 - For pan-only movement, consider layer transforms (`contentsGravity`, `contentsRect`, affine transforms) before redrawing.
 
 ### 8. Text was expensive, but disabling it only removed one layer
+
+Status: pending
 
 `drawNumbers` creates `CTLine`s per palette ID, then loops over visible cells and draws text. This is expensive at high zoom, but it is gated by `cellSize >= 18` and `showNumbers`.
 
@@ -134,6 +150,8 @@ Still, number rendering should eventually be cached or tiled because it can beco
 
 ### 9. Persistence during drag-paint, not plain panning
 
+Status: pending
+
 Panning itself does not save. Long-press paint stroke changes call `persistDocument()` during each changed pixel, which writes JSON and saves SwiftData. That can cause jank during painting gestures, but should not affect pure panning unless gestures conflict or a paint stroke is active.
 
 Likely fix direction:
@@ -142,6 +160,8 @@ Likely fix direction:
 - Keep in-memory document changes immediate, but persist at throttled intervals or on `.ended`.
 
 ### 10. Gesture recognizer interaction
+
+Status: pending
 
 The overlay uses UIKit recognizers, which is good. However, panning requires long press to fail because of:
 
@@ -156,6 +176,8 @@ Likely fix direction:
 - Confirm in Instruments whether recognizer callbacks are delayed or whether frame time is spent in drawing.
 
 ### 11. Anti-aliasing and subpixel alignment
+
+Status: pending
 
 Cell rectangles can land on fractional coordinates during pan. That can cause antialiasing/blending on many rectangle edges. For crisp pixel art this is undesirable visually and may cost extra.
 
