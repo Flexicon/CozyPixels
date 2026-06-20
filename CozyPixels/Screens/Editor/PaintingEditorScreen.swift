@@ -10,10 +10,7 @@ struct PaintingEditorScreen: View {
     @State private var selectedPaletteColorID: Int?
     @State private var showGrid = false
     @State private var showNumbers = true
-    @State private var transform = CanvasTransform()
-    @State private var gestureStartTransform = CanvasTransform()
-    @State private var pinchStartLocation: CGPoint?
-    @State private var lastStrokePixelIndex: Int?
+    @State private var canvasResetToken = 0
     @State private var strokeDidChange = false
     @State private var errorMessage: String?
     @State private var saveErrorMessage: String?
@@ -23,38 +20,23 @@ struct PaintingEditorScreen: View {
     private let previewRenderer = PreviewRenderer()
     private let paintingEngine = PaintingEngine()
     private let editorBackground = Color(red: 0.11, green: 0.11, blue: 0.11)
-    private let minScale: CGFloat = 0.5
-    private let maxScale: CGFloat = 24
 
     var body: some View {
         VStack(spacing: 0) {
             GeometryReader { proxy in
                 ZStack(alignment: .topLeading) {
                     if let document {
-                        PixelCanvasView(
-                            state: PixelCanvasRenderState(
-                                document: document,
-                                selectedPaletteColorID: selectedPaletteColorID,
-                                showGrid: showGrid,
-                                showNumbers: showNumbers,
-                                scale: transform.scale
-                            ),
-                            transform: transform
-                        )
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-
-                        CanvasInputOverlay(
-                            onTap: { point in
-                                paint(at: point, canvasSize: proxy.size, document: document, updatePreview: true)
+                        InteractivePixelCanvas(
+                            document: document,
+                            selectedPaletteColorID: selectedPaletteColorID,
+                            showGrid: showGrid,
+                            showNumbers: showNumbers,
+                            resetToken: canvasResetToken,
+                            onTapPixel: { pixelIndex in
+                                paint(pixelIndex: pixelIndex, document: document, updatePreview: true)
                             },
-                            onPan: { translation, phase in
-                                handlePan(translation: translation, phase: phase)
-                            },
-                            onPinch: { magnification, location, phase in
-                                handlePinch(magnification: magnification, location: location, phase: phase, canvasSize: proxy.size, document: document)
-                            },
-                            onPaintStroke: { point, phase in
-                                handlePaintStroke(at: point, phase: phase, canvasSize: proxy.size, document: document)
+                            onStrokePixel: { pixelIndex, phase in
+                                handlePaintStroke(pixelIndex: pixelIndex, phase: phase, document: document)
                             }
                         )
                         .frame(width: proxy.size.width, height: proxy.size.height)
@@ -118,70 +100,21 @@ struct PaintingEditorScreen: View {
         }
     }
 
-    private func handlePan(translation: CGSize, phase: CanvasInputPhase) {
+    private func handlePaintStroke(pixelIndex: Int, phase: CanvasInputPhase, document: PaintingDocument) {
         switch phase {
         case .began:
-            gestureStartTransform = transform
-        case .changed:
-            transform.offset = CGSize(
-                width: gestureStartTransform.offset.width + translation.width,
-                height: gestureStartTransform.offset.height + translation.height
-            )
-        case .ended, .cancelled:
-            gestureStartTransform = transform
-        }
-    }
-
-    private func handlePinch(magnification: CGFloat, location: CGPoint, phase: CanvasInputPhase, canvasSize: CGSize, document: PaintingDocument) {
-        let imageSize = PixelSize(width: document.width, height: document.height)
-
-        switch phase {
-        case .began:
-            gestureStartTransform = transform
-            pinchStartLocation = location
-        case .changed:
-            let anchorLocation = pinchStartLocation ?? location
-            let previousGeometry = gestureStartTransform.geometry(canvasSize: canvasSize, imageSize: imageSize)
-            let newScale = min(max(gestureStartTransform.scale * magnification, minScale), maxScale)
-            var nextTransform = CanvasTransform(scale: newScale, offset: gestureStartTransform.offset)
-            let nextGeometry = nextTransform.geometry(canvasSize: canvasSize, imageSize: imageSize)
-            guard previousGeometry.cellSize > 0, nextGeometry.cellSize > 0 else {
-                transform = nextTransform
-                return
-            }
-
-            let localX = (anchorLocation.x - previousGeometry.origin.x) / previousGeometry.cellSize
-            let localY = (anchorLocation.y - previousGeometry.origin.y) / previousGeometry.cellSize
-            let nextOrigin = nextGeometry.origin
-            nextTransform.offset = CGSize(
-                width: nextTransform.offset.width + anchorLocation.x - (nextOrigin.x + localX * nextGeometry.cellSize),
-                height: nextTransform.offset.height + anchorLocation.y - (nextOrigin.y + localY * nextGeometry.cellSize)
-            )
-            transform = nextTransform
-        case .ended, .cancelled:
-            gestureStartTransform = transform
-            pinchStartLocation = nil
-        }
-    }
-
-    private func handlePaintStroke(at point: CGPoint, phase: CanvasInputPhase, canvasSize: CGSize, document: PaintingDocument) {
-        switch phase {
-        case .began:
-            lastStrokePixelIndex = nil
             strokeDidChange = false
         case .changed:
-            paint(at: point, canvasSize: canvasSize, document: document, updatePreview: false)
+            paint(pixelIndex: pixelIndex, document: document, updatePreview: false)
         case .ended:
             if strokeDidChange {
                 persistDocument(updatePreview: true)
             }
-            lastStrokePixelIndex = nil
             strokeDidChange = false
         case .cancelled:
             if strokeDidChange {
                 persistDocument(updatePreview: true)
             }
-            lastStrokePixelIndex = nil
             strokeDidChange = false
         }
     }
@@ -202,15 +135,9 @@ struct PaintingEditorScreen: View {
         }
     }
 
-    private func paint(at point: CGPoint, canvasSize: CGSize, document currentDocument: PaintingDocument, updatePreview: Bool) {
+    private func paint(pixelIndex: Int, document currentDocument: PaintingDocument, updatePreview: Bool) {
         guard let selectedPaletteColorID else { return }
-        let imageSize = PixelSize(width: currentDocument.width, height: currentDocument.height)
-        guard let coordinate = transform.screenPointToPixel(point, canvasSize: canvasSize, imageSize: imageSize) else { return }
-
-        let pixelIndex = coordinate.pixelIndex(in: imageSize)
         guard pixelIndex < currentDocument.targetColorIndexByPixel.count else { return }
-        guard lastStrokePixelIndex != pixelIndex || updatePreview else { return }
-        lastStrokePixelIndex = pixelIndex
 
         var updatedDocument = currentDocument
         let result = paintingEngine.paintPixel(at: pixelIndex, selectedPaletteColorID: selectedPaletteColorID, in: &updatedDocument)
@@ -224,8 +151,7 @@ struct PaintingEditorScreen: View {
         document = updatedDocument
 
         if !wasCompleted, painting.isCompleted {
-            transform = CanvasTransform()
-            gestureStartTransform = transform
+            canvasResetToken += 1
             showGrid = false
         }
         updateSelectedPaletteColorID(for: updatedDocument)

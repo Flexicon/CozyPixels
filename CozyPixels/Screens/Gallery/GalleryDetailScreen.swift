@@ -17,7 +17,7 @@ struct GalleryDetailScreen: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 if let importResult {
-                    PixelCanvasView(state: PixelCanvasRenderState(document: importResult.document, selectedPaletteColorID: selectedPaletteColorID, showGrid: true, showNumbers: true, scale: 1))
+                    PixelCanvasView(state: PixelCanvasRenderState(document: importResult.document, selectedPaletteColorID: selectedPaletteColorID, showGrid: true, showNumbers: true))
                         .frame(maxHeight: 520)
                         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 } else {

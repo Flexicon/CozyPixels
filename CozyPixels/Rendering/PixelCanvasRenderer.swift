@@ -7,7 +7,6 @@ struct PixelCanvasRenderState: Equatable {
     var selectedPaletteColorID: Int?
     var showGrid: Bool
     var showNumbers: Bool
-    var scale: CGFloat
 }
 
 struct PixelCanvasRenderer {
@@ -44,7 +43,7 @@ struct PixelCanvasRenderer {
             drawPixels(context: &context, document: document, geometry: geometry, visibleRange: visibleRange, bitset: bitset, paletteByID: paletteByID, wrongAttemptsByPixel: wrongAttemptsByPixel)
         }
 
-        if !isCompleted, geometry.cellSize >= 3 {
+        if !isCompleted, state.showGrid, geometry.cellSize >= 3 {
             drawGrid(context: &context, geometry: geometry, visibleRange: visibleRange)
         }
 
