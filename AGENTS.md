@@ -259,14 +259,13 @@ Rendering states:
 
 Grid overlay:
 
-* Toggleable.
-* Visible only when useful.
+* Hidden by default in the simplified MVP editor.
+* May be reintroduced behind a control later if useful.
 * Should not dominate at low zoom.
 * Use crisp lines aligned to pixel boundaries.
 
 Number overlay:
 
-* Toggleable if easy.
 * Automatically hidden below readable zoom.
 * Must not tank frame rate.
 
@@ -277,11 +276,14 @@ Required editor gestures:
 * Pinch to zoom.
 * Drag to pan.
 * Tap pixel to paint.
+* Reset drawing from the Home card context menu.
+
+Deferred editor gestures and controls:
+
 * Drag-paint across pixels.
-* Toggle grid.
-* Toggle numbers if implemented.
+* Grid toggle.
+* Numbers toggle.
 * Undo last stroke.
-* Reset drawing.
 
 Coordinate mapping must be centralized.
 
@@ -400,16 +402,11 @@ Gallery manifest example:
 Required layout:
 
 ```txt
-Top bar:
-  back
-  title
-  progress
-  grid toggle
-  numbers toggle if implemented
-  undo
+Navigation:
+  minimal back behavior only
 
 Center:
-  zoomable/pannable pixel canvas
+  full-screen zoomable/pannable pixel canvas
 
 Bottom:
   horizontally scrollable palette
@@ -418,9 +415,9 @@ Bottom:
 Palette item:
 
 * color swatch
-* number
-* completed count / total count if easy
+* remaining pixel count overlaid on the swatch
 * selected state
+* completed colors hidden
 
 ## Preview Generation
 

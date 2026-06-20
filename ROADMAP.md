@@ -21,10 +21,11 @@ Implemented:
 * Exact color palette extraction with deterministic sorting.
 * Import validation for maximum dimensions and palette size.
 * Cached progress previews generated from painting state, not original images.
-* Home grid sorted by `updatedAt` with progress cards and delete support.
+* Home grid sorted by `updatedAt` with progress cards, reset, and delete support.
 * Bundled gallery manifest and gallery search.
 * Gallery lifecycle rule: no `Painting` is created until the first correct pixel.
-* SwiftUI Canvas editor with pan, zoom, tap paint, drag paint, grid toggle, number toggle, undo, reset, selected-color highlighting, and persisted wrong attempts.
+* Full-screen SwiftUI Canvas editor with pinch zoom, drag pan, tap paint, selected-color highlighting, completion zoom reset, and persisted wrong attempts.
+* Simplified editor palette showing remaining pixel counts on swatches and hiding completed colors.
 * Canvas performance pass with visible-cell culling for pixels, grid, numbers, and checkerboard cells.
 * Preview generation moved off the main actor after editor strokes.
 * Unit tests covering core non-UI logic.
@@ -32,7 +33,7 @@ Implemented:
 Verified most recently with:
 
 ```sh
-xcodebuild test -scheme CozyPixels -destination 'id=A7C0D548-D51F-4AB0-80BA-34E9650E3F28'
+xcodebuild test -project CozyPixels.xcodeproj -scheme CozyPixels -destination 'id=E41274CE-E25E-4755-84B1-2D22C911980B'
 ```
 
 Result: passing.
