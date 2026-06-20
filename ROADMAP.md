@@ -1,571 +1,154 @@
 # ROADMAP.md
 
-## Goal
+## Product Direction
 
-Build a native SwiftUI iPadOS/iOS paint-by-number pixel art app.
+CozyPixels is a native SwiftUI iPadOS/iOS paint-by-number pixel art app.
 
-The app lets users import raster images or choose bundled gallery images. It converts each image into a numbered palette grid. Users repaint the image by selecting colors and filling matching numbered pixels.
+Users import raster pixel art or start from bundled gallery art. The app converts each image into a finite numbered palette grid, shows an unpainted grayscale canvas, and lets users repaint matching cells by selecting palette colors.
 
-## Architectural Decision
+## Current MVP Status
 
-Use native SwiftUI.
+Status: feature-complete, release-hardening pending
 
-Do not use React Native, Flutter, Unity, SpriteKit, or a web wrapper for MVP.
+Implemented:
 
-Rationale:
+* Native SwiftUI app shell with Home and Gallery tabs.
+* SwiftData `Painting` metadata model.
+* File-backed painting documents under Application Support.
+* JSON `PaintingDocument` blobs with palette, target grid, completed bitset, and wrong attempts.
+* Photo import through PhotosUI.
+* ImageIO/CoreGraphics decoding and RGBA8 normalization.
+* Exact color palette extraction with deterministic sorting.
+* Import validation for maximum dimensions and palette size.
+* Cached progress previews generated from painting state, not original images.
+* Home grid sorted by `updatedAt` with progress cards and delete support.
+* Bundled gallery manifest and gallery search.
+* Gallery lifecycle rule: no `Painting` is created until the first correct pixel.
+* SwiftUI Canvas editor with pan, zoom, tap paint, drag paint, grid toggle, number toggle, undo, reset, selected-color highlighting, and persisted wrong attempts.
+* Canvas performance pass with visible-cell culling for pixels, grid, numbers, and checkerboard cells.
+* Preview generation moved off the main actor after editor strokes.
+* Unit tests covering core non-UI logic.
 
-* Apple-device-only target.
-* Best deployment path to physical iPads.
-* Native photo import.
-* Native persistence.
-* Direct access to CoreGraphics/ImageIO.
-* No cross-platform build overhead.
+Verified most recently with:
 
-## MVP Scope
-
-Included:
-
-* Home grid of started paintings.
-* Photo import.
-* Exact palette extraction.
-* Pixel grid parsing.
-* Local bundled gallery.
-* Gallery search.
-* Canvas editor.
-* Pinch zoom and pan.
-* Tap/drag painting.
-* Grid toggle.
-* Number display at readable zoom.
-* Bottom horizontal palette.
-* Correct painting.
-* Persisted wrong attempts.
-* Cached progress thumbnails.
-* SwiftData metadata.
-* File-backed painting blobs.
-
-Not included:
-
-* Backend CMS.
-* Accounts/auth.
-* Cloud sync.
-* Export/share.
-* Social features.
-* In-app purchases.
-* Advanced quantization.
-* Full photo-to-paint-by-number conversion.
-* PencilKit freehand drawing.
-
-## Phase 0 — Create Xcode Project
-
-Status: completed
-
-Create a fresh Xcode project:
-
-```txt
-App template: iOS App
-Language: Swift
-Interface: SwiftUI
-Storage: SwiftData if available in template
-Targets: iOS + iPadOS
-Minimum OS: iOS/iPadOS 17 or newer
+```sh
+xcodebuild test -scheme CozyPixels -destination 'id=A7C0D548-D51F-4AB0-80BA-34E9650E3F28'
 ```
 
-Project name:
+Result: passing.
 
-```txt
-CozyPixels
-```
+## Release Hardening
 
-Initial checks:
+Status: next
 
-* App builds.
-* App runs on iPad simulator.
-* App runs on physical iPad.
-* SwiftData container initializes.
-* Basic tab/navigation shell works.
+These are the next implementation steps before calling the MVP shippable.
 
-Suggested top-level navigation:
+### 1. Remove Template and Debug Scaffolding
 
-```txt
-Home
-Gallery
-```
+Status: pending
 
-## Phase 1 — Core Data Types
+Tasks:
 
-Status: completed
-
-Create the basic model and support types.
-
-Files:
-
-```txt
-Models/Painting.swift
-Models/PaintingDocument.swift
-Models/PaletteColor.swift
-Models/GalleryItem.swift
-Utilities/Bitset.swift
-```
-
-Implement:
-
-* `Painting` SwiftData model.
-* `PaintingDocument` Codable blob.
-* `PaletteColor`.
-* `WrongAttempt`.
-* `GalleryItem`.
-* `Bitset`.
+* Remove or keep strictly debug-only sample painting insertion from Home.
+* Replace template UI tests with meaningful smoke tests.
+* Remove generated placeholder comments from UI test files.
+* Confirm no placeholder copy or sample-only affordances appear in release builds.
 
 Acceptance criteria:
 
-* `Painting` can be inserted into SwiftData.
-* `PaintingDocument` can encode/decode to JSON.
-* Bitset can set/get pixel completion by index.
-* Unit tests cover bitset and pixel indexing.
+* Release build has no `Add Samples` affordance.
+* UI tests assert app launch, Home empty state, Gallery presence, and core navigation.
 
-## Phase 2 — File Storage
+### 2. Manual Device QA
 
-Status: completed
+Status: pending
 
-Create:
+Tasks:
 
-```txt
-Services/PaintingStore.swift
-```
-
-Responsibilities:
-
-* Create per-painting directory.
-* Save `painting.json`.
-* Load `painting.json`.
-* Save `preview.png`.
-* Delete painting directory.
-* Keep file names deterministic.
-
-Suggested structure:
-
-```txt
-Application Support/
-  Paintings/
-    <painting-id>/
-      painting.json
-      preview.png
-```
+* Test import from Photos on a physical iPad.
+* Test import from Photos on a physical iPhone if available.
+* Test bundled gallery start flow.
+* Test app relaunch after painting correct and wrong cells.
+* Test delete behavior removes SwiftData metadata and files.
+* Test large accepted images in the `129...256` range.
+* Test rejection for images above `256x256`.
+* Test rejection for images above `64` exact colors.
 
 Acceptance criteria:
 
-* A fake `PaintingDocument` can be saved and loaded.
-* Missing file errors are explicit.
-* Corrupt JSON errors are explicit.
-* Deleting a painting removes its files.
+* Import, paint, persist, preview, relaunch, and delete work on device.
+* No known crash in normal MVP flows.
 
-## Phase 3 — Image Import and Parsing
+### 3. Performance Validation
 
-Status: completed
+Status: pending
 
-Create:
+Tasks:
 
-```txt
-Services/ImageImportService.swift
-Services/PaletteExtractor.swift
-```
-
-Implement import from image data:
-
-1. Decode with ImageIO/CoreGraphics.
-2. Normalize pixel format to RGBA8.
-3. Validate dimensions.
-4. Extract exact colors.
-5. Sort palette deterministically.
-6. Convert pixels to palette color IDs.
-7. Create `PaintingDocument`.
-
-Rules:
-
-```txt
-recommendedMaxDimension = 128
-hardMaxDimension = 256
-maxPaletteColors = 64
-```
-
-Behavior:
-
-* `<= 128x128`: accept.
-* `129...256`: accept with warning metadata or review UI.
-* `> 256`: reject.
-* `palette > 64`: reject for MVP.
+* Profile editor rendering at `128x128` and `256x256` in Instruments.
+* Profile drag-paint responsiveness with numbers enabled and disabled.
+* Profile preview generation after completed strokes.
+* Check home grid scrolling with many paintings.
+* Record rough JSON blob sizes for `128x128` and `256x256` documents.
 
 Acceptance criteria:
 
-* Small PNG imports.
-* JPG imports if system decoder supports it.
-* Oversized image fails clearly.
-* Too many colors fails clearly.
-* Transparent pixels are handled deterministically.
-* Unit tests cover palette extraction and sorting.
+* `128x128` drawings feel smooth on target iPad hardware.
+* `256x256` drawings remain usable, even if less comfortable.
+* No further renderer rewrite is needed for MVP.
 
-## Phase 4 — Home Screen
+### 4. Persistence and Recovery Polish
 
-Status: completed
+Status: pending
 
-Create:
+Tasks:
 
-```txt
-Screens/Home/HomeScreen.swift
-Screens/Home/PaintingCardView.swift
-```
-
-Home card displays:
-
-* preview image
-* title
-* last updated timestamp
-* progress percentage
-
-Behavior:
-
-* Imported paintings appear immediately.
-* Cards sort by `updatedAt` descending.
-* Empty state tells user to import or open Gallery.
+* Decide whether a missing/corrupt SwiftData container should show a recoverable error instead of `fatalError`.
+* Ensure missing preview regeneration remains reliable after background preview saves.
+* Confirm failed background preview saves do not leave stale UI state.
+* Consider an explicit preview-regeneration path for all paintings if cached files are deleted.
 
 Acceptance criteria:
 
-* Home grid renders sample paintings.
-* Tapping card opens editor.
-* Deleting a painting works if implemented.
-* Home uses cached preview, not original image.
+* Storage failures are understandable to users where recovery is possible.
+* Missing preview files never break Home rendering.
 
-## Phase 5 — Photo Import UI
+### 5. Release Metadata and Privacy
 
-Status: completed
+Status: pending
 
-Create:
+Tasks:
 
-```txt
-Screens/Import/ImportImageButton.swift
-Screens/Import/ImportReviewScreen.swift
-```
-
-Flow:
-
-1. User taps import.
-2. `PhotosPicker` opens.
-3. User selects raster.
-4. App loads data.
-5. App parses image.
-6. App creates `Painting`.
-7. App stores `PaintingDocument`.
-8. App creates initial preview.
-9. App navigates to editor or returns to home.
+* Confirm deployment target and supported device families.
+* Confirm Photos privacy usage description is present and user-friendly.
+* Confirm app icon and launch appearance.
+* Prepare basic App Store privacy answers.
+* Confirm no third-party dependencies are included.
 
 Acceptance criteria:
 
-* Import from Photos works on simulator/device.
-* Import failure shows actionable error.
-* Imported image creates a `Painting` immediately.
-* Initial preview is grayscale numbered/progress state, not original image.
+* App archive is ready for TestFlight submission.
+* Privacy behavior matches App Store metadata.
 
-## Phase 6 — Bundled Gallery
+## Post-MVP Backlog
 
-Status: completed
-
-Create:
-
-```txt
-Services/GalleryStore.swift
-Screens/Gallery/GalleryScreen.swift
-Screens/Gallery/GalleryDetailScreen.swift
-Resources/Gallery/gallery.json
-Resources/Gallery/*.png
-```
-
-Gallery manifest:
-
-```json
-[
-  {
-    "id": "sample-001",
-    "title": "Sample Cat",
-    "tags": ["animal", "easy"],
-    "assetName": "gallery_sample_cat",
-    "difficulty": "easy"
-  }
-]
-```
-
-Behavior:
-
-* Load manifest from bundle.
-* Display gallery grid.
-* Search by title and tags.
-* Tapping item opens preview/editor-like detail.
-* Do not create `Painting` until first correct paint.
-
-Acceptance criteria:
-
-* Gallery loads bundled examples.
-* Search filters title/tags.
-* Opening gallery item does not create home entry.
-* First correct pixel creates `Painting`.
-* Wrong attempts before first correct pixel should either be blocked or kept transient until a real `Painting` exists.
-
-Recommended MVP simplification:
-
-```txt
-For gallery previews, require selecting the correct color and painting one correct pixel before creating a Painting.
-Wrong attempts before creation are visual-only and not persisted.
-```
-
-After creation, wrong attempts persist normally.
-
-## Phase 7 — Canvas Rendering
-
-Status: completed
-
-Create:
-
-```txt
-Rendering/PixelCanvasView.swift
-Rendering/PixelCanvasRenderer.swift
-Rendering/CanvasTransform.swift
-Rendering/PixelGeometry.swift
-```
-
-Start with SwiftUI `Canvas`.
-
-Renderer inputs:
-
-```swift
-struct PixelCanvasRenderState {
-    var document: PaintingDocument
-    var selectedPaletteColorID: Int?
-    var showGrid: Bool
-    var showNumbers: Bool
-    var scale: CGFloat
-}
-```
-
-Render layers:
-
-1. Background.
-2. Empty/transparent cells.
-3. Unpainted gray cells.
-4. Selected-color matching highlight.
-5. Correct painted cells.
-6. Wrong attempts.
-7. Grid overlay.
-8. Numbers when readable.
-
-Acceptance criteria:
-
-* 32x32 renders smoothly.
-* 64x64 renders smoothly.
-* 128x128 remains usable.
-* 256x256 is allowed but may be less comfortable.
-* Numbers hide at low zoom.
-* Grid toggle works.
-* Selected color highlights matching unpainted cells.
-
-## Phase 8 — Editor Gestures and Painting
-
-Status: completed
-
-Create:
-
-```txt
-Screens/Editor/PaintingEditorScreen.swift
-Screens/Editor/PaletteBarView.swift
-Screens/Editor/EditorToolbar.swift
-```
-
-Implement:
-
-* Pinch to zoom.
-* Drag to pan.
-* Tap to paint.
-* Drag-paint.
-* Palette selection.
-* Grid toggle.
-* Number toggle if implemented.
-* Undo last stroke.
-* Reset.
-
-Painting behavior:
-
-```txt
-Correct selected color:
-  mark pixel complete
-  remove wrong attempt on that pixel
-  increment progress if newly completed
-  update preview after stroke
-  persist document
-  update Painting.updatedAt
-
-Incorrect selected color:
-  persist wrong attempt
-  do not increment progress
-  keep correct number visible
-  update Painting.updatedAt
-```
-
-Undo behavior for MVP:
-
-* Undo last stroke.
-* A stroke may contain one or more pixel changes.
-* Store stroke history in memory during the editor session.
-* Persistence of undo history is not required for MVP.
-
-Acceptance criteria:
-
-* User can complete a simple drawing.
-* Correct pixels persist.
-* Wrong attempts persist.
-* Reopening app restores state.
-* Drag-paint does not repeatedly process the same pixel in one stroke.
-* Painting already completed pixels does nothing.
-
-## Phase 9 — Preview Renderer
-
-Status: completed
-
-Create:
-
-```txt
-Services/PreviewRenderer.swift
-```
-
-Generate cached preview PNG from current progress.
-
-Preview rules:
-
-* Unpainted cells are gray.
-* Correct cells are colored.
-* Wrong attempts may be shown lightly or omitted.
-* Completed drawings show full color.
-* Preview must not use original image.
-
-Update preview:
-
-* after import
-* after completed stroke
-* after reset
-* after completion
-
-Acceptance criteria:
-
-* Home card preview updates after painting.
-* Preview generation does not block the editor noticeably.
-* Preview file is persisted.
-* Missing preview can be regenerated from `painting.json`.
-
-## Phase 10 — Polish and Error States
-
-Status: completed
-
-Add user-facing states:
-
-* empty home
-* empty gallery
-* import too large
-* too many colors
-* corrupt painting file
-* missing gallery asset
-* failed preview generation
-* failed persistence
-
-Add small UX improvements:
-
-* selected palette color is visually obvious
-* palette number is readable
-* progress indicator is visible
-* completion state is satisfying but simple
-* large drawing warning for `129...256`
-
-Acceptance criteria:
-
-* No silent failures.
-* No crashes on bad imports.
-* No unusable tiny number text at low zoom.
-* Editor remains usable on iPad mini.
-
-## Phase 11 — Tests
-
-Status: completed
-
-Add tests for non-UI logic.
-
-Priority tests:
-
-```txt
-BitsetTests
-PaletteExtractorTests
-PaintingDocumentCodableTests
-PaintingProgressTests
-CanvasTransformTests
-GalleryLifecycleTests
-```
-
-Specific cases:
-
-* `pixelIndex = y * width + x`
-* bitset set/get
-* palette deterministic sorting
-* exact color extraction
-* too many colors rejection
-* oversized image rejection
-* correct paint increments progress once
-* wrong paint persists attempt
-* duplicate wrong attempt is ignored
-* correct paint removes wrong attempt
-* imported image creates Painting immediately
-* gallery image creates Painting only after first correct paint
-
-## Phase 12 — Performance Pass
-
-Status: completed
-
-Profile after the MVP works.
-
-Check:
-
-* render cost at 128x128
-* render cost at 256x256
-* drag-paint responsiveness
-* preview generation time
-* JSON blob size
-* app launch with many paintings
-* home grid scrolling
-
-Potential optimizations:
-
-* cache rendered static layers
-* render numbers only for visible cells
-* skip grid at low zoom
-* use custom `UIView` drawing if SwiftUI `Canvas` is not enough
-* move preview rendering off main actor
-* binary encode painting documents instead of JSON later
-
-Do not optimize before measuring.
-
-## Backlog After MVP
+Do not start these until release hardening is complete unless a specific item becomes necessary during QA.
 
 ### Import Improvements
 
 * Optional quantization.
-* User-selectable palette size.
-* Resize/crop import review.
-* Dithered import mode.
+* User-selectable palette size: `8`, `16`, `24`, `32`, `48`, `64`.
+* Resize/crop import review for oversized images.
 * Better JPG cleanup.
 * Transparent pixel options.
 
 ### Gallery Improvements
 
-* Remote CMS.
-* Downloadable gallery packs.
+* More bundled gallery items.
 * Difficulty filters.
-* Categories.
-* Featured/new sections.
+* Categories or featured sections.
 * Gallery item progress badges.
+* Remote CMS or downloadable packs later, not MVP.
 
 ### Editor Improvements
 
@@ -580,9 +163,9 @@ Do not optimize before measuring.
 ### Persistence Improvements
 
 * iCloud sync.
-* Backup/restore.
+* Backup and restore.
 * Compact binary document format.
-* Versioned migrations.
+* Versioned document migrations.
 
 ### Sharing
 
@@ -591,28 +174,26 @@ Do not optimize before measuring.
 * Share sheet.
 * Timelapse generation.
 
-## Build Order Summary
+## Non-Goals For MVP
 
-Implement in this exact order:
+* Backend CMS.
+* Accounts or auth.
+* Cloud sync.
+* Export or sharing.
+* Social features.
+* In-app purchases.
+* Advanced quantization.
+* Full photo-to-paint-by-number conversion.
+* PencilKit freehand drawing.
+* Third-party image decoding, persistence, gestures, grid rendering, or palette extraction.
 
-```txt
-1. SwiftData Painting model
-2. PaintingDocument + Bitset
-3. PaintingStore file persistence
-4. Image parser with exact palette extraction
-5. Home screen with fake/sample paintings
-6. Photo import flow
-7. Bundled gallery manifest
-8. Canvas renderer
-9. Editor gestures
-10. Painting rules and persistence
-11. Cached previews
-12. Tests
-13. Polish
-```
+## Engineering Rules
 
-Do not start backend/CMS/export/quantization work until the MVP loop is complete:
-
-```txt
-import/gallery -> parse -> open editor -> paint -> persist -> preview -> resume
-```
+* Keep the app Apple-device-first: Swift, SwiftUI, SwiftData, ImageIO/CoreGraphics, PhotosUI.
+* Do not render one SwiftUI view per pixel.
+* Do not store one SwiftData row per pixel.
+* Keep rendering separate from persistence.
+* Keep coordinate mapping separate from views.
+* Keep pure logic testable outside SwiftUI.
+* Use deterministic file formats and explicit user-facing errors.
+* Use simulator destination IDs for `xcodebuild`, not simulator names.
