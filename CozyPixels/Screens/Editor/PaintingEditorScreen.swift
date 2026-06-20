@@ -12,8 +12,7 @@ struct PaintingEditorScreen: View {
     @State private var showNumbers = true
     @State private var transform = CanvasTransform()
     @State private var gestureStartTransform = CanvasTransform()
-    @State private var hasCurrentStrokeChanges = false
-    @State private var processedPixelsInStroke: Set<Int> = []
+    @State private var isPanning = false
     @State private var errorMessage: String?
     @State private var saveErrorMessage: String?
     @State private var previewSaveTask: Task<Void, Never>?
@@ -23,6 +22,7 @@ struct PaintingEditorScreen: View {
     private let paintingEngine = PaintingEngine()
     private let minScale: CGFloat = 0.5
     private let maxScale: CGFloat = 24
+    private let panActivationDistance: CGFloat = 6
 
     var body: some View {
         VStack(spacing: 0) {
@@ -110,21 +110,18 @@ struct PaintingEditorScreen: View {
                 },
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
-                    if selectedPaletteColorID == nil {
-                        transform.offset = CGSize(
-                            width: gestureStartTransform.offset.width + value.translation.width,
-                            height: gestureStartTransform.offset.height + value.translation.height
-                        )
-                    } else {
+                    guard value.translation.distance >= panActivationDistance else { return }
+                    isPanning = true
+                    transform.offset = CGSize(
+                        width: gestureStartTransform.offset.width + value.translation.width,
+                        height: gestureStartTransform.offset.height + value.translation.height
+                    )
+                }
+                .onEnded { value in
+                    if !isPanning {
                         paint(at: value.location, canvasSize: canvasSize, document: document)
                     }
-                }
-                .onEnded { _ in
-                    if hasCurrentStrokeChanges {
-                        persistDocument(updatePreview: true)
-                    }
-                    hasCurrentStrokeChanges = false
-                    processedPixelsInStroke.removeAll()
+                    isPanning = false
                     gestureStartTransform = transform
                 }
         )
@@ -152,8 +149,7 @@ struct PaintingEditorScreen: View {
         guard let coordinate = transform.screenPointToPixel(point, canvasSize: canvasSize, imageSize: imageSize) else { return }
 
         let pixelIndex = coordinate.pixelIndex(in: imageSize)
-        guard !processedPixelsInStroke.contains(pixelIndex), pixelIndex < currentDocument.targetColorIndexByPixel.count else { return }
-        processedPixelsInStroke.insert(pixelIndex)
+        guard pixelIndex < currentDocument.targetColorIndexByPixel.count else { return }
 
         var updatedDocument = currentDocument
         let result = paintingEngine.paintPixel(at: pixelIndex, selectedPaletteColorID: selectedPaletteColorID, in: &updatedDocument)
@@ -165,7 +161,7 @@ struct PaintingEditorScreen: View {
         painting.isCompleted = painting.completedPixelCount >= painting.totalPaintablePixelCount
         document = updatedDocument
 
-        hasCurrentStrokeChanges = true
+        persistDocument(updatePreview: true)
     }
 
     private func persistDocument(updatePreview: Bool = false) {
@@ -212,5 +208,11 @@ struct PaintingEditorScreen: View {
             guard colorID > 0 else { return }
             counts[colorID, default: 0] += 1
         }
+    }
+}
+
+private extension CGSize {
+    var distance: CGFloat {
+        sqrt(width * width + height * height)
     }
 }

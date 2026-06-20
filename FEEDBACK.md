@@ -42,7 +42,7 @@ Acceptance criteria:
 
 ## 2. Reliable Zoom And Pan
 
-Status: pending
+Status: completed
 
 Goal: Users can pinch to zoom and pan the zoomed canvas at any time, even when a color is selected.
 
