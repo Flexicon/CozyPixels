@@ -110,7 +110,7 @@ Acceptance criteria:
 
 ## 4. Simplified Color Bar
 
-Status: pending
+Status: completed
 
 Goal: The palette bar should show only useful remaining work per color.
 

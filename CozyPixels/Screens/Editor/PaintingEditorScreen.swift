@@ -132,7 +132,7 @@ struct PaintingEditorScreen: View {
             guard let store else { throw PaintingStoreError.missingPaintingDocument(URL(filePath: painting.projectBlobFilename)) }
             let loadedDocument = try store.loadPaintingDocument(for: painting.id)
             document = loadedDocument
-            selectedPaletteColorID = selectedPaletteColorID ?? loadedDocument.palette.first?.id
+            updateSelectedPaletteColorID(for: loadedDocument)
             errorMessage = nil
         } catch PaintingStoreError.missingPaintingDocument {
             errorMessage = "This painting file is missing. Delete it from Home or restore it from a backup."
@@ -167,8 +167,17 @@ struct PaintingEditorScreen: View {
             gestureStartTransform = transform
             showGrid = false
         }
+        updateSelectedPaletteColorID(for: updatedDocument)
 
         persistDocument(updatePreview: true)
+    }
+
+    private func updateSelectedPaletteColorID(for document: PaintingDocument) {
+        let remainingColorIDs = remainingColorIDs(for: document)
+        if let selectedPaletteColorID, remainingColorIDs.contains(selectedPaletteColorID) {
+            return
+        }
+        selectedPaletteColorID = remainingColorIDs.first
     }
 
     private func persistDocument(updatePreview: Bool = false) {
@@ -214,6 +223,16 @@ struct PaintingEditorScreen: View {
             let colorID = Int(item.element)
             guard colorID > 0 else { return }
             counts[colorID, default: 0] += 1
+        }
+    }
+
+    private func remainingColorIDs(for document: PaintingDocument) -> [Int] {
+        let completedCounts = completedCountsByColorID(for: document)
+        let totalCounts = totalCountsByColorID(for: document)
+
+        return document.palette.compactMap { color in
+            let remainingCount = totalCounts[color.id, default: 0] - completedCounts[color.id, default: 0]
+            return remainingCount > 0 ? color.id : nil
         }
     }
 }

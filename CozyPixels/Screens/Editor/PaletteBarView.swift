@@ -6,22 +6,29 @@ struct PaletteBarView: View {
     var completedCountsByColorID: [Int: Int]
     var totalCountsByColorID: [Int: Int]
 
+    private var remainingPalette: [(color: PaletteColor, remainingCount: Int)] {
+        palette.compactMap { color in
+            let remainingCount = totalCountsByColorID[color.id, default: 0] - completedCountsByColorID[color.id, default: 0]
+            guard remainingCount > 0 else { return nil }
+            return (color, remainingCount)
+        }
+    }
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(palette) { color in
+                ForEach(remainingPalette, id: \.color.id) { item in
                     Button {
-                        selectedPaletteColorID = color.id
+                        selectedPaletteColorID = item.color.id
                     } label: {
                         PaletteColorButtonLabel(
-                            color: color,
-                            isSelected: selectedPaletteColorID == color.id,
-                            completedCount: completedCountsByColorID[color.id, default: 0],
-                            totalCount: totalCountsByColorID[color.id, default: 0]
+                            color: item.color,
+                            isSelected: selectedPaletteColorID == item.color.id,
+                            remainingCount: item.remainingCount
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Color \(color.id)")
+                    .accessibilityLabel("Color \(item.color.id), \(item.remainingCount) pixels remaining")
                 }
             }
             .padding(.horizontal)
@@ -32,22 +39,10 @@ struct PaletteBarView: View {
 private struct PaletteColorButtonLabel: View {
     let color: PaletteColor
     let isSelected: Bool
-    let completedCount: Int
-    let totalCount: Int
+    let remainingCount: Int
 
     var body: some View {
-        VStack(spacing: 6) {
-            swatch
-
-            Text("#\(color.id)")
-                .font(.callout.bold())
-                .foregroundStyle(.primary)
-                .minimumScaleFactor(0.8)
-
-            Text("\(completedCount)/\(totalCount)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
+        swatch
         .padding(8)
         .background(isSelected ? Color.accentColor.opacity(0.16) : Color.clear)
         .overlay {
@@ -72,6 +67,16 @@ private struct PaletteColorButtonLabel: View {
                         .foregroundStyle(Color.white, Color.accentColor)
                         .padding(4)
                 }
+            }
+            .overlay {
+                Text("\(remainingCount)")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(.black.opacity(0.45), in: Capsule())
             }
     }
 }
