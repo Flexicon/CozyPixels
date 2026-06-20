@@ -1,9 +1,44 @@
 [
   {
     "id": "sample-001",
-    "title": "Sample Cat",
+    "title": "Odd Cat",
     "tags": ["animal", "easy"],
     "assetName": "gallery_sample_cat",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sample-002",
+    "title": "Cat",
+    "tags": ["animal", "easy"],
+    "assetName": "cat",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sample-003",
+    "title": "Charmander",
+    "tags": ["animal", "medium", "pokemon"],
+    "assetName": "charmander",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sample-004",
+    "title": "Earth",
+    "tags": ["map", "globe", "geography", "easy"],
+    "assetName": "earth",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sample-005",
+    "title": "Heart",
+    "tags": ["anatomy", "medium"],
+    "assetName": "heart",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sample-006",
+    "title": "Sword",
+    "tags": ["sword", "medieval", "fantasy", "easy"],
+    "assetName": "sword",
     "difficulty": "easy"
   }
 ]
