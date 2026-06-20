@@ -5,6 +5,10 @@ struct HomeScreen: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Painting.updatedAt, order: .reverse) private var paintings: [Painting]
 
+    @State private var resetErrorMessage: String?
+
+    private let previewRenderer = PreviewRenderer()
+
     private let columns = [
         GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 16)
     ]
@@ -22,6 +26,10 @@ struct HomeScreen: View {
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
+                                Button("Reset", systemImage: "arrow.counterclockwise", role: .destructive) {
+                                    reset(painting)
+                                }
+
                                 Button("Delete", systemImage: "trash", role: .destructive) {
                                     delete(painting)
                                 }
@@ -33,6 +41,11 @@ struct HomeScreen: View {
             }
         }
         .navigationTitle("Home")
+        .alert("Reset Failed", isPresented: resetErrorPresented) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(resetErrorMessage ?? "This painting could not be reset.")
+        }
         .navigationDestination(for: Painting.self) { painting in
             PaintingEditorScreen(painting: painting)
         }
@@ -62,6 +75,37 @@ struct HomeScreen: View {
         }
 
         modelContext.delete(painting)
+    }
+
+    private var resetErrorPresented: Binding<Bool> {
+        Binding(
+            get: { resetErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    resetErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private func reset(_ painting: Painting) {
+        do {
+            let store = try PaintingStore()
+            let document = try store.resetPaintingDocument(for: painting.id)
+
+            painting.completedPixelCount = 0
+            painting.isCompleted = false
+            painting.updatedAt = Date()
+
+            if let previewData = previewRenderer.pngData(for: document) {
+                try store.savePreviewPNG(previewData, for: painting.id)
+                painting.previewFilename = PaintingStore.previewFilename
+            }
+
+            try modelContext.save()
+        } catch {
+            resetErrorMessage = "This painting could not be reset."
+        }
     }
 
     #if DEBUG

@@ -75,6 +75,14 @@ nonisolated struct PaintingStore {
         }
     }
 
+    func resetPaintingDocument(for paintingID: UUID) throws -> PaintingDocument {
+        var document = try loadPaintingDocument(for: paintingID)
+        document.correctPaintedBitset = Bitset(bitCount: document.width * document.height).data
+        document.wrongAttempts.removeAll()
+        try savePaintingDocument(document, for: paintingID)
+        return document
+    }
+
     func savePreviewPNG(_ data: Data, for paintingID: UUID) throws {
         let directoryURL = directoryURL(for: paintingID)
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)

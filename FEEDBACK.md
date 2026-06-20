@@ -4,7 +4,7 @@ Temporary implementation plan for the current editor adjustments.
 
 ## 1. Full-Screen Editor Layout
 
-Status: pending
+Status: completed
 
 Goal: Make the editor feel like a full-screen painting surface with only navigation and the color bar competing for space.
 

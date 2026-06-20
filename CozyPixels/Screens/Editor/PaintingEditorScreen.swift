@@ -11,12 +11,10 @@ struct PaintingEditorScreen: View {
     @State private var showNumbers = true
     @State private var transform = CanvasTransform()
     @State private var gestureStartTransform = CanvasTransform()
-    @State private var currentStroke: StrokeChange?
+    @State private var hasCurrentStrokeChanges = false
     @State private var processedPixelsInStroke: Set<Int> = []
-    @State private var strokeHistory: [StrokeChange] = []
     @State private var errorMessage: String?
     @State private var saveErrorMessage: String?
-    @State private var resetConfirmationPresented = false
     @State private var previewSaveTask: Task<Void, Never>?
 
     private let store = try? PaintingStore()
@@ -27,20 +25,6 @@ struct PaintingEditorScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            EditorToolbar(
-                title: painting.title,
-                progressText: progressText,
-                showGrid: $showGrid,
-                showNumbers: $showNumbers,
-                canUndo: !strokeHistory.isEmpty,
-                undoAction: undoLastStroke,
-                resetAction: { resetConfirmationPresented = true }
-            )
-            .padding(.horizontal)
-            .padding(.vertical, 10)
-
-            Divider()
-
             GeometryReader { proxy in
                 ZStack {
                     if let document {
@@ -75,14 +59,6 @@ struct PaintingEditorScreen: View {
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.red.opacity(0.08))
-            } else if painting.isCompleted {
-                Label("Completed", systemImage: "checkmark.seal.fill")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.green)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.green.opacity(0.10))
             }
 
             Divider()
@@ -103,23 +79,9 @@ struct PaintingEditorScreen: View {
         .task {
             loadDocument()
         }
-        .confirmationDialog("Reset this painting?", isPresented: $resetConfirmationPresented, titleVisibility: .visible) {
-            Button("Reset Painting", role: .destructive) {
-                resetPainting()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This clears completed pixels and wrong attempts for this painting.")
-        }
         .onDisappear {
             previewSaveTask?.cancel()
         }
-    }
-
-    private var progressText: String {
-        guard painting.totalPaintablePixelCount > 0 else { return "0%" }
-        let percentage = Double(painting.completedPixelCount) / Double(painting.totalPaintablePixelCount)
-        return percentage.formatted(.percent.precision(.fractionLength(0)))
     }
 
     private func canvasGesture(canvasSize: CGSize, document: PaintingDocument) -> some Gesture {
@@ -143,11 +105,10 @@ struct PaintingEditorScreen: View {
                     }
                 }
                 .onEnded { _ in
-                    if let currentStroke, !currentStroke.changes.isEmpty {
-                        strokeHistory.append(currentStroke)
+                    if hasCurrentStrokeChanges {
                         persistDocument(updatePreview: true)
                     }
-                    currentStroke = nil
+                    hasCurrentStrokeChanges = false
                     processedPixelsInStroke.removeAll()
                     gestureStartTransform = transform
                 }
@@ -189,48 +150,7 @@ struct PaintingEditorScreen: View {
         painting.isCompleted = painting.completedPixelCount >= painting.totalPaintablePixelCount
         document = updatedDocument
 
-        let pixelChange = PixelChange(pixelIndex: change.pixelIndex, previousWrongAttempt: change.previousWrongAttempt)
-        if currentStroke == nil {
-            currentStroke = StrokeChange(changes: [])
-        }
-        currentStroke?.changes.append(pixelChange)
-    }
-
-    private func undoLastStroke() {
-        guard var currentDocument = document, let stroke = strokeHistory.popLast() else { return }
-
-        var bitset = Bitset(data: currentDocument.correctPaintedBitset, bitCount: currentDocument.width * currentDocument.height)
-
-        for change in stroke.changes.reversed() {
-            if bitset.contains(change.pixelIndex) {
-                bitset.set(change.pixelIndex, to: false)
-                painting.completedPixelCount = max(0, painting.completedPixelCount - 1)
-            }
-
-            currentDocument.wrongAttempts.removeAll { $0.pixelIndex == change.pixelIndex }
-            if let previousWrongAttempt = change.previousWrongAttempt {
-                currentDocument.wrongAttempts.append(previousWrongAttempt)
-            }
-        }
-
-        currentDocument.correctPaintedBitset = bitset.data
-        painting.updatedAt = Date()
-        painting.isCompleted = painting.completedPixelCount >= painting.totalPaintablePixelCount
-        document = currentDocument
-        persistDocument(updatePreview: true)
-    }
-
-    private func resetPainting() {
-        guard var currentDocument = document else { return }
-
-        currentDocument.correctPaintedBitset = Bitset(bitCount: currentDocument.width * currentDocument.height).data
-        currentDocument.wrongAttempts.removeAll()
-        painting.completedPixelCount = 0
-        painting.isCompleted = false
-        painting.updatedAt = Date()
-        document = currentDocument
-        strokeHistory.removeAll()
-        persistDocument(updatePreview: true)
+        hasCurrentStrokeChanges = true
     }
 
     private func persistDocument(updatePreview: Bool = false) {
@@ -278,13 +198,4 @@ struct PaintingEditorScreen: View {
             counts[colorID, default: 0] += 1
         }
     }
-}
-
-private struct StrokeChange {
-    var changes: [PixelChange]
-}
-
-private struct PixelChange {
-    var pixelIndex: Int
-    var previousWrongAttempt: WrongAttempt?
 }
