@@ -76,7 +76,8 @@ struct PaintingCardView: View {
         guard painting.previewFilename != nil else { return nil }
         guard let store = try? PaintingStore() else { return nil }
         let url = store.previewURL(for: painting.id)
-        return UIImage(contentsOfFile: url.path)
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return UIImage(data: data)
     }
 
     private func regenerateMissingPreviewImage() async -> UIImage? {
