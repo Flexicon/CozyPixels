@@ -20,6 +20,7 @@ struct PaintingEditorScreen: View {
 
     private let store = try? PaintingStore()
     private let previewRenderer = PreviewRenderer()
+    private let paintingEngine = PaintingEngine()
     private let minScale: CGFloat = 0.5
     private let maxScale: CGFloat = 24
 
@@ -172,34 +173,17 @@ struct PaintingEditorScreen: View {
         guard !processedPixelsInStroke.contains(pixelIndex), pixelIndex < currentDocument.targetColorIndexByPixel.count else { return }
         processedPixelsInStroke.insert(pixelIndex)
 
-        let targetColorID = Int(currentDocument.targetColorIndexByPixel[pixelIndex])
-        guard targetColorID > 0 else { return }
-
         var updatedDocument = currentDocument
-        var bitset = Bitset(data: updatedDocument.correctPaintedBitset, bitCount: updatedDocument.width * updatedDocument.height)
-        guard !bitset.contains(pixelIndex) else { return }
+        let result = paintingEngine.paintPixel(at: pixelIndex, selectedPaletteColorID: selectedPaletteColorID, in: &updatedDocument)
+        guard case .changed(let change) = result else { return }
 
-        let previousWrongAttempt = updatedDocument.wrongAttempts.first { $0.pixelIndex == pixelIndex }
-
-        if selectedPaletteColorID == targetColorID {
-            bitset.set(pixelIndex)
-            updatedDocument.correctPaintedBitset = bitset.data
-            updatedDocument.wrongAttempts.removeAll { $0.pixelIndex == pixelIndex }
-            painting.completedPixelCount += 1
-        } else {
-            if previousWrongAttempt?.attemptedPaletteColorID == selectedPaletteColorID {
-                return
-            }
-
-            updatedDocument.wrongAttempts.removeAll { $0.pixelIndex == pixelIndex }
-            updatedDocument.wrongAttempts.append(WrongAttempt(pixelIndex: pixelIndex, attemptedPaletteColorID: selectedPaletteColorID))
-        }
+        painting.completedPixelCount += change.completedDelta
 
         painting.updatedAt = Date()
         painting.isCompleted = painting.completedPixelCount >= painting.totalPaintablePixelCount
         document = updatedDocument
 
-        let pixelChange = PixelChange(pixelIndex: pixelIndex, previousWrongAttempt: previousWrongAttempt)
+        let pixelChange = PixelChange(pixelIndex: change.pixelIndex, previousWrongAttempt: change.previousWrongAttempt)
         if currentStroke == nil {
             currentStroke = StrokeChange(changes: [])
         }

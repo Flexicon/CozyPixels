@@ -459,9 +459,9 @@ UI tests are optional for MVP.
 ## Suggested Project Structure
 
 ```txt
-PaintByNumbers/
+CozyPixels/
   App/
-    PaintByNumbersApp.swift
+    CozyPixelsApp.swift
 
   Models/
     Painting.swift

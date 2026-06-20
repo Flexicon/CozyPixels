@@ -70,10 +70,10 @@ Targets: iOS + iPadOS
 Minimum OS: iOS/iPadOS 17 or newer
 ```
 
-Project name can be changed later. Use a neutral working name such as:
+Project name:
 
 ```txt
-PaintByNumbers
+CozyPixels
 ```
 
 Initial checks:
@@ -460,7 +460,7 @@ Acceptance criteria:
 
 ## Phase 10 — Polish and Error States
 
-Status: in progress
+Status: completed
 
 Add user-facing states:
 
@@ -490,7 +490,7 @@ Acceptance criteria:
 
 ## Phase 11 — Tests
 
-Status: pending
+Status: completed
 
 Add tests for non-UI logic.
 

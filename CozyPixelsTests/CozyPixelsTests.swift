@@ -279,6 +279,120 @@ struct CozyPixelsTests {
         }
     }
 
+    @Test func canvasTransformMapsScreenPointToPixel() {
+        let transform = CanvasTransform()
+        let coordinate = transform.screenPointToPixel(
+            CGPoint(x: 150, y: 150),
+            canvasSize: CGSize(width: 200, height: 200),
+            imageSize: PixelSize(width: 4, height: 4)
+        )
+
+        #expect(coordinate == PixelCoordinate(x: 3, y: 3))
+        #expect(coordinate?.pixelIndex(in: PixelSize(width: 4, height: 4)) == 15)
+    }
+
+    @Test func canvasTransformReturnsNilOutsideImageBounds() {
+        let transform = CanvasTransform(scale: 1, offset: CGSize(width: 20, height: 0))
+        let coordinate = transform.screenPointToPixel(
+            CGPoint(x: 10, y: 50),
+            canvasSize: CGSize(width: 100, height: 100),
+            imageSize: PixelSize(width: 2, height: 2)
+        )
+
+        #expect(coordinate == nil)
+    }
+
+    @Test func paintingEngineCorrectPaintIncrementsProgressOnce() {
+        var document = unpaintedPaintingDocument()
+        let engine = PaintingEngine()
+
+        let firstResult = engine.paintPixel(at: 0, selectedPaletteColorID: 1, in: &document)
+        let secondResult = engine.paintPixel(at: 0, selectedPaletteColorID: 1, in: &document)
+
+        #expect(firstResult == .changed(PaintPixelChange(pixelIndex: 0, completedDelta: 1)))
+        #expect(secondResult == .unchanged)
+        #expect(Bitset(data: document.correctPaintedBitset, bitCount: 4).contains(0))
+    }
+
+    @Test func paintingEngineWrongPaintPersistsAttempt() {
+        var document = unpaintedPaintingDocument()
+        document.wrongAttempts.removeAll()
+
+        let result = PaintingEngine().paintPixel(at: 0, selectedPaletteColorID: 2, in: &document)
+
+        #expect(result == .changed(PaintPixelChange(pixelIndex: 0, completedDelta: 0)))
+        #expect(document.wrongAttempts.count == 1)
+        #expect(document.wrongAttempts.first?.pixelIndex == 0)
+        #expect(document.wrongAttempts.first?.attemptedPaletteColorID == 2)
+    }
+
+    @Test func paintingEngineDuplicateWrongAttemptIsIgnored() {
+        var document = samplePaintingDocument()
+        document.wrongAttempts = [WrongAttempt(pixelIndex: 0, attemptedPaletteColorID: 2)]
+
+        let result = PaintingEngine().paintPixel(at: 0, selectedPaletteColorID: 2, in: &document)
+
+        #expect(result == .unchanged)
+        #expect(document.wrongAttempts.count == 1)
+    }
+
+    @Test func paintingEngineCorrectPaintRemovesWrongAttempt() {
+        let wrongAttempt = WrongAttempt(pixelIndex: 0, attemptedPaletteColorID: 2, createdAt: Date(timeIntervalSince1970: 50))
+        var document = unpaintedPaintingDocument()
+        document.wrongAttempts = [wrongAttempt]
+
+        let result = PaintingEngine().paintPixel(at: 0, selectedPaletteColorID: 1, in: &document)
+
+        #expect(result == .changed(PaintPixelChange(pixelIndex: 0, completedDelta: 1, previousWrongAttempt: wrongAttempt)))
+        #expect(document.wrongAttempts.isEmpty)
+        #expect(Bitset(data: document.correctPaintedBitset, bitCount: 4).contains(0))
+    }
+
+    @Test func importedImageCreatesPaintingImmediately() throws {
+        let result = try ImageImportService().importCGImage(try cgImage(width: 1, height: 1, pixels: [
+            RGBAPixel(red: 255, green: 0, blue: 0, alpha: 255)
+        ]))
+
+        let painting = Painting(
+            title: "Imported",
+            sourceType: .imported,
+            width: result.document.width,
+            height: result.document.height,
+            paletteColorCount: result.document.palette.count,
+            completedPixelCount: 0,
+            totalPaintablePixelCount: result.paintablePixelCount
+        )
+
+        #expect(painting.sourceTypeRawValue == PaintingSourceType.imported.rawValue)
+        #expect(painting.completedPixelCount == 0)
+        #expect(painting.totalPaintablePixelCount == 1)
+    }
+
+    @Test func galleryImageCreatesPaintingOnlyAfterFirstCorrectPaint() {
+        var document = unpaintedPaintingDocument()
+        let galleryItem = GalleryItem(id: "sample", title: "Sample", tags: ["easy"], assetName: "sample", difficulty: "easy")
+        let result = PaintingEngine().paintPixel(at: 0, selectedPaletteColorID: 1, in: &document)
+
+        let painting: Painting?
+        if case .changed(let change) = result, change.completedDelta == 1 {
+            painting = Painting(
+                title: galleryItem.title,
+                sourceType: .gallery,
+                width: document.width,
+                height: document.height,
+                paletteColorCount: document.palette.count,
+                completedPixelCount: 1,
+                totalPaintablePixelCount: 4,
+                isCompleted: false
+            )
+        } else {
+            painting = nil
+        }
+
+        #expect(painting?.sourceTypeRawValue == PaintingSourceType.gallery.rawValue)
+        #expect(painting?.completedPixelCount == 1)
+    }
+
 }
 
 private func samplePaintingDocument() -> PaintingDocument {
@@ -294,6 +408,20 @@ private func samplePaintingDocument() -> PaintingDocument {
         wrongAttempts: [
             WrongAttempt(pixelIndex: 1, attemptedPaletteColorID: 2, createdAt: Date(timeIntervalSince1970: 1_800))
         ]
+    )
+}
+
+private func unpaintedPaintingDocument() -> PaintingDocument {
+    PaintingDocument(
+        width: 2,
+        height: 2,
+        palette: [
+            PaletteColor(id: 1, red: 255, green: 0, blue: 0),
+            PaletteColor(id: 2, red: 0, green: 0, blue: 255)
+        ],
+        targetColorIndexByPixel: [1, 2, 2, 1],
+        correctPaintedBitset: Bitset(bitCount: 4).data,
+        wrongAttempts: []
     )
 }
 
