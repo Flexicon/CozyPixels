@@ -4,6 +4,7 @@ import SwiftUI
 struct PaintingEditorScreen: View {
     let painting: Painting
 
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @State private var document: PaintingDocument?
     @State private var selectedPaletteColorID: Int?
@@ -26,7 +27,7 @@ struct PaintingEditorScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             GeometryReader { proxy in
-                ZStack {
+                ZStack(alignment: .topLeading) {
                     if let document {
                         PixelCanvasView(
                             state: PixelCanvasRenderState(
@@ -46,9 +47,23 @@ struct PaintingEditorScreen: View {
                     } else {
                         ProgressView("Loading painting...")
                     }
+
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .frame(width: 44, height: 44)
+                            .background(.thinMaterial, in: Circle())
+                    }
+                    .accessibilityLabel("Back")
+                    .padding(.leading, 16)
+                    .padding(.top, max(proxy.safeAreaInsets.top, 12))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.secondarySystemBackground))
+                .ignoresSafeArea(edges: .top)
             }
 
             if let saveErrorMessage {
@@ -73,8 +88,8 @@ struct PaintingEditorScreen: View {
                 .padding(.vertical, 10)
             }
         }
-        .navigationTitle(painting.title)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .task {
             loadDocument()
