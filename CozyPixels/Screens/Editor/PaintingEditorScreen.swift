@@ -21,6 +21,7 @@ struct PaintingEditorScreen: View {
     private let store = try? PaintingStore()
     private let previewRenderer = PreviewRenderer()
     private let paintingEngine = PaintingEngine()
+    private let editorBackground = Color(red: 0.11, green: 0.11, blue: 0.11)
     private let minScale: CGFloat = 0.5
     private let maxScale: CGFloat = 24
 
@@ -76,7 +77,7 @@ struct PaintingEditorScreen: View {
                     .padding(.top, max(proxy.safeAreaInsets.top, 12))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(.secondarySystemBackground))
+                .background(editorBackground)
                 .ignoresSafeArea(edges: .top)
             }
 
@@ -90,7 +91,9 @@ struct PaintingEditorScreen: View {
                     .background(Color.red.opacity(0.08))
             }
 
-            Divider()
+            Rectangle()
+                .fill(editorBackground)
+                .frame(height: 1)
 
             if let document {
                 PaletteBarView(
@@ -102,6 +105,7 @@ struct PaintingEditorScreen: View {
                 .padding(.vertical, 10)
             }
         }
+        .background(editorBackground)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
