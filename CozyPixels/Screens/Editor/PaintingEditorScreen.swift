@@ -8,7 +8,7 @@ struct PaintingEditorScreen: View {
     @Environment(\.modelContext) private var modelContext
     @State private var document: PaintingDocument?
     @State private var selectedPaletteColorID: Int?
-    @State private var showGrid = true
+    @State private var showGrid = false
     @State private var showNumbers = true
     @State private var transform = CanvasTransform()
     @State private var gestureStartTransform = CanvasTransform()
@@ -155,11 +155,18 @@ struct PaintingEditorScreen: View {
         let result = paintingEngine.paintPixel(at: pixelIndex, selectedPaletteColorID: selectedPaletteColorID, in: &updatedDocument)
         guard case .changed(let change) = result else { return }
 
+        let wasCompleted = painting.isCompleted
         painting.completedPixelCount += change.completedDelta
 
         painting.updatedAt = Date()
         painting.isCompleted = painting.completedPixelCount >= painting.totalPaintablePixelCount
         document = updatedDocument
+
+        if !wasCompleted, painting.isCompleted {
+            transform = CanvasTransform()
+            gestureStartTransform = transform
+            showGrid = false
+        }
 
         persistDocument(updatePreview: true)
     }

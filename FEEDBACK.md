@@ -84,7 +84,7 @@ Acceptance criteria:
 
 ## 3. Completion Presentation
 
-Status: pending
+Status: completed
 
 Goal: When a painting is completed, show the whole finished artwork clearly.
 
