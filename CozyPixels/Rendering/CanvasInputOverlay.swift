@@ -4,7 +4,7 @@ import UIKit
 struct CanvasInputOverlay: UIViewRepresentable {
     var onTap: (CGPoint) -> Void
     var onPan: (CGSize, CanvasInputPhase) -> Void
-    var onPinch: (CGFloat, CanvasInputPhase) -> Void
+    var onPinch: (CGFloat, CGPoint, CanvasInputPhase) -> Void
     var onPaintStroke: (CGPoint, CanvasInputPhase) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -53,13 +53,13 @@ struct CanvasInputOverlay: UIViewRepresentable {
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var onTap: (CGPoint) -> Void
         var onPan: (CGSize, CanvasInputPhase) -> Void
-        var onPinch: (CGFloat, CanvasInputPhase) -> Void
+        var onPinch: (CGFloat, CGPoint, CanvasInputPhase) -> Void
         var onPaintStroke: (CGPoint, CanvasInputPhase) -> Void
 
         init(
             onTap: @escaping (CGPoint) -> Void,
             onPan: @escaping (CGSize, CanvasInputPhase) -> Void,
-            onPinch: @escaping (CGFloat, CanvasInputPhase) -> Void,
+            onPinch: @escaping (CGFloat, CGPoint, CanvasInputPhase) -> Void,
             onPaintStroke: @escaping (CGPoint, CanvasInputPhase) -> Void
         ) {
             self.onTap = onTap
@@ -81,8 +81,9 @@ struct CanvasInputOverlay: UIViewRepresentable {
         }
 
         @objc func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
+            guard let view = recognizer.view else { return }
             let phase = CanvasInputPhase(recognizer.state)
-            onPinch(recognizer.scale, phase)
+            onPinch(recognizer.scale, recognizer.location(in: view), phase)
         }
 
         @objc func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {

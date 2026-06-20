@@ -12,6 +12,7 @@ struct PaintingEditorScreen: View {
     @State private var showNumbers = true
     @State private var transform = CanvasTransform()
     @State private var gestureStartTransform = CanvasTransform()
+    @State private var pinchStartLocation: CGPoint?
     @State private var lastStrokePixelIndex: Int?
     @State private var strokeDidChange = false
     @State private var errorMessage: String?
@@ -49,8 +50,8 @@ struct PaintingEditorScreen: View {
                             onPan: { translation, phase in
                                 handlePan(translation: translation, phase: phase)
                             },
-                            onPinch: { magnification, phase in
-                                handlePinch(magnification: magnification, phase: phase)
+                            onPinch: { magnification, location, phase in
+                                handlePinch(magnification: magnification, location: location, phase: phase, canvasSize: proxy.size, document: document)
                             },
                             onPaintStroke: { point, phase in
                                 handlePaintStroke(at: point, phase: phase, canvasSize: proxy.size, document: document)
@@ -131,14 +132,35 @@ struct PaintingEditorScreen: View {
         }
     }
 
-    private func handlePinch(magnification: CGFloat, phase: CanvasInputPhase) {
+    private func handlePinch(magnification: CGFloat, location: CGPoint, phase: CanvasInputPhase, canvasSize: CGSize, document: PaintingDocument) {
+        let imageSize = PixelSize(width: document.width, height: document.height)
+
         switch phase {
         case .began:
             gestureStartTransform = transform
+            pinchStartLocation = location
         case .changed:
-            transform.scale = min(max(gestureStartTransform.scale * magnification, minScale), maxScale)
+            let anchorLocation = pinchStartLocation ?? location
+            let previousGeometry = gestureStartTransform.geometry(canvasSize: canvasSize, imageSize: imageSize)
+            let newScale = min(max(gestureStartTransform.scale * magnification, minScale), maxScale)
+            var nextTransform = CanvasTransform(scale: newScale, offset: gestureStartTransform.offset)
+            let nextGeometry = nextTransform.geometry(canvasSize: canvasSize, imageSize: imageSize)
+            guard previousGeometry.cellSize > 0, nextGeometry.cellSize > 0 else {
+                transform = nextTransform
+                return
+            }
+
+            let localX = (anchorLocation.x - previousGeometry.origin.x) / previousGeometry.cellSize
+            let localY = (anchorLocation.y - previousGeometry.origin.y) / previousGeometry.cellSize
+            let nextOrigin = nextGeometry.origin
+            nextTransform.offset = CGSize(
+                width: nextTransform.offset.width + anchorLocation.x - (nextOrigin.x + localX * nextGeometry.cellSize),
+                height: nextTransform.offset.height + anchorLocation.y - (nextOrigin.y + localY * nextGeometry.cellSize)
+            )
+            transform = nextTransform
         case .ended, .cancelled:
             gestureStartTransform = transform
+            pinchStartLocation = nil
         }
     }
 

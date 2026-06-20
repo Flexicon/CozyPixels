@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreText
 import SwiftUI
 
 struct PixelCanvasRenderState: Equatable {
@@ -12,6 +13,8 @@ struct PixelCanvasRenderState: Equatable {
 struct PixelCanvasRenderer {
     private let state: PixelCanvasRenderState
     private let transform: CanvasTransform
+    private let numberCellSizeThreshold: CGFloat = 18
+    private let numberFontSize: CGFloat = 14
 
     init(state: PixelCanvasRenderState, transform: CanvasTransform = CanvasTransform()) {
         self.state = state
@@ -45,7 +48,7 @@ struct PixelCanvasRenderer {
             drawGrid(context: &context, geometry: geometry, visibleRange: visibleRange)
         }
 
-        if !isCompleted, state.showNumbers, geometry.cellSize >= 18 {
+        if !isCompleted, state.showNumbers, geometry.cellSize >= numberCellSizeThreshold {
             drawNumbers(context: &context, document: document, geometry: geometry, visibleRange: visibleRange, bitset: bitset, paletteByID: paletteByID)
         }
     }
@@ -187,23 +190,54 @@ struct PixelCanvasRenderer {
         bitset: Bitset,
         paletteByID: [Int: PaletteColor]
     ) {
-        let fontSize = min(geometry.cellSize * 0.42, 18)
         let origin = geometry.origin
         let cellSize = geometry.cellSize
+        let font = CTFontCreateUIFontForLanguage(.system, numberFontSize, nil) ?? CTFontCreateWithName("Helvetica-Bold" as CFString, numberFontSize, nil)
+        let textColor = CGColor(gray: 0, alpha: 0.72)
+        let numberLineByID = Dictionary(uniqueKeysWithValues: paletteByID.keys.map { targetID in
+            let text = NSAttributedString(
+                string: "\(targetID)",
+                attributes: [
+                    .font: font,
+                    .foregroundColor: textColor
+                ]
+            )
+            let line = CTLineCreateWithAttributedString(text)
+            let bounds = CTLineGetBoundsWithOptions(line, [.useOpticalBounds])
+            return (targetID, (line: line, bounds: bounds))
+        })
 
-        for y in visibleRange.y {
-            let centerY = origin.y + CGFloat(y) * cellSize + cellSize / 2
+        context.withCGContext { cgContext in
+            cgContext.saveGState()
+            cgContext.textMatrix = .identity
 
-            for x in visibleRange.x {
-                let pixelIndex = y * document.width + x
-                guard pixelIndex < document.targetColorIndexByPixel.count, !bitset.contains(pixelIndex) else { continue }
+            for y in visibleRange.y {
+                let centerY = origin.y + CGFloat(y) * cellSize + cellSize / 2
 
-                let targetID = Int(document.targetColorIndexByPixel[pixelIndex])
-                guard targetID > 0, paletteByID[targetID] != nil else { continue }
+                for x in visibleRange.x {
+                    let pixelIndex = y * document.width + x
+                    guard pixelIndex < document.targetColorIndexByPixel.count, !bitset.contains(pixelIndex) else { continue }
 
-                let text = Text("\(targetID)").font(.system(size: fontSize, weight: .semibold, design: .rounded)).foregroundStyle(.black.opacity(0.72))
-                context.draw(text, at: CGPoint(x: origin.x + CGFloat(x) * cellSize + cellSize / 2, y: centerY), anchor: .center)
+                    let targetID = Int(document.targetColorIndexByPixel[pixelIndex])
+                    guard targetID > 0, let numberLine = numberLineByID[targetID] else { continue }
+
+                    let position = CGPoint(
+                        x: origin.x + CGFloat(x) * cellSize + (cellSize - numberLine.bounds.width) / 2,
+                        y: centerY - numberLine.bounds.height / 2
+                    )
+                    cgContext.saveGState()
+                    cgContext.translateBy(x: 0, y: position.y * 2 + numberLine.bounds.height)
+                    cgContext.scaleBy(x: 1, y: -1)
+                    cgContext.textPosition = CGPoint(
+                        x: position.x - numberLine.bounds.minX,
+                        y: position.y - numberLine.bounds.minY
+                    )
+                    CTLineDraw(numberLine.line, cgContext)
+                    cgContext.restoreGState()
+                }
             }
+
+            cgContext.restoreGState()
         }
     }
 }
