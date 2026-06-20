@@ -522,7 +522,7 @@ Specific cases:
 
 ## Phase 12 — Performance Pass
 
-Status: pending
+Status: completed
 
 Profile after the MVP works.
 

@@ -29,16 +29,20 @@ struct PixelCanvasRenderer {
         let bitset = Bitset(data: document.correctPaintedBitset, bitCount: document.width * document.height)
         let paletteByID = Dictionary(uniqueKeysWithValues: document.palette.map { ($0.id, $0) })
         let wrongAttemptsByPixel = Dictionary(uniqueKeysWithValues: document.wrongAttempts.map { ($0.pixelIndex, $0) })
+        let viewport = CGRect(origin: .zero, size: size)
+        let visibleRange = geometry.visiblePixelRange(in: viewport)
 
         drawCheckerboard(context: &context, geometry: geometry)
-        drawPixels(context: &context, document: document, geometry: geometry, bitset: bitset, paletteByID: paletteByID, wrongAttemptsByPixel: wrongAttemptsByPixel)
+        guard let visibleRange else { return }
+
+        drawPixels(context: &context, document: document, geometry: geometry, visibleRange: visibleRange, bitset: bitset, paletteByID: paletteByID, wrongAttemptsByPixel: wrongAttemptsByPixel)
 
         if state.showGrid, geometry.cellSize >= 3 {
-            drawGrid(context: &context, geometry: geometry)
+            drawGrid(context: &context, geometry: geometry, visibleRange: visibleRange)
         }
 
         if state.showNumbers, geometry.cellSize >= 18 {
-            drawNumbers(context: &context, document: document, geometry: geometry, bitset: bitset, paletteByID: paletteByID)
+            drawNumbers(context: &context, document: document, geometry: geometry, visibleRange: visibleRange, bitset: bitset, paletteByID: paletteByID)
         }
     }
 
@@ -47,9 +51,10 @@ struct PixelCanvasRenderer {
         context.fill(Path(contentRect), with: .color(Color(.secondarySystemBackground)))
 
         guard geometry.cellSize >= 6 else { return }
+        guard let visibleRange = geometry.visiblePixelRange(in: CGRect(origin: .zero, size: geometry.canvasSize)) else { return }
 
-        for y in 0..<geometry.imageSize.height {
-            for x in 0..<geometry.imageSize.width where (x + y).isMultiple(of: 2) {
+        for y in visibleRange.y {
+            for x in visibleRange.x where (x + y).isMultiple(of: 2) {
                 context.fill(Path(geometry.rect(for: PixelCoordinate(x: x, y: y))), with: .color(Color(.tertiarySystemBackground)))
             }
         }
@@ -59,19 +64,25 @@ struct PixelCanvasRenderer {
         context: inout GraphicsContext,
         document: PaintingDocument,
         geometry: PixelGeometry,
+        visibleRange: (x: Range<Int>, y: Range<Int>),
         bitset: Bitset,
         paletteByID: [Int: PaletteColor],
         wrongAttemptsByPixel: [Int: WrongAttempt]
     ) {
-        for y in 0..<document.height {
-            for x in 0..<document.width {
+        let origin = geometry.origin
+        let cellSize = geometry.cellSize
+
+        for y in visibleRange.y {
+            let rectY = origin.y + CGFloat(y) * cellSize + 0.25
+
+            for x in visibleRange.x {
                 let pixelIndex = y * document.width + x
                 guard pixelIndex < document.targetColorIndexByPixel.count else { continue }
 
                 let targetID = Int(document.targetColorIndexByPixel[pixelIndex])
                 guard targetID > 0, let targetColor = paletteByID[targetID] else { continue }
 
-                let rect = geometry.rect(for: PixelCoordinate(x: x, y: y)).insetBy(dx: 0.25, dy: 0.25)
+                let rect = CGRect(x: origin.x + CGFloat(x) * cellSize + 0.25, y: rectY, width: cellSize - 0.5, height: cellSize - 0.5)
                 let path = Path(rect)
 
                 if bitset.contains(pixelIndex) {
@@ -88,22 +99,24 @@ struct PixelCanvasRenderer {
         }
     }
 
-    private func drawGrid(context: inout GraphicsContext, geometry: PixelGeometry) {
+    private func drawGrid(context: inout GraphicsContext, geometry: PixelGeometry, visibleRange: (x: Range<Int>, y: Range<Int>)) {
         var path = Path()
         let origin = geometry.origin
-        let width = geometry.contentSize.width
-        let height = geometry.contentSize.height
+        let minX = origin.x + CGFloat(visibleRange.x.lowerBound) * geometry.cellSize
+        let maxX = origin.x + CGFloat(visibleRange.x.upperBound) * geometry.cellSize
+        let minY = origin.y + CGFloat(visibleRange.y.lowerBound) * geometry.cellSize
+        let maxY = origin.y + CGFloat(visibleRange.y.upperBound) * geometry.cellSize
 
-        for x in 0...geometry.imageSize.width {
+        for x in visibleRange.x.lowerBound...visibleRange.x.upperBound {
             let position = origin.x + CGFloat(x) * geometry.cellSize
-            path.move(to: CGPoint(x: position, y: origin.y))
-            path.addLine(to: CGPoint(x: position, y: origin.y + height))
+            path.move(to: CGPoint(x: position, y: minY))
+            path.addLine(to: CGPoint(x: position, y: maxY))
         }
 
-        for y in 0...geometry.imageSize.height {
+        for y in visibleRange.y.lowerBound...visibleRange.y.upperBound {
             let position = origin.y + CGFloat(y) * geometry.cellSize
-            path.move(to: CGPoint(x: origin.x, y: position))
-            path.addLine(to: CGPoint(x: origin.x + width, y: position))
+            path.move(to: CGPoint(x: minX, y: position))
+            path.addLine(to: CGPoint(x: maxX, y: position))
         }
 
         context.stroke(path, with: .color(.black.opacity(0.18)), lineWidth: max(0.5, 1 / max(geometry.scale, 1)))
@@ -113,22 +126,26 @@ struct PixelCanvasRenderer {
         context: inout GraphicsContext,
         document: PaintingDocument,
         geometry: PixelGeometry,
+        visibleRange: (x: Range<Int>, y: Range<Int>),
         bitset: Bitset,
         paletteByID: [Int: PaletteColor]
     ) {
         let fontSize = min(geometry.cellSize * 0.42, 18)
+        let origin = geometry.origin
+        let cellSize = geometry.cellSize
 
-        for y in 0..<document.height {
-            for x in 0..<document.width {
+        for y in visibleRange.y {
+            let centerY = origin.y + CGFloat(y) * cellSize + cellSize / 2
+
+            for x in visibleRange.x {
                 let pixelIndex = y * document.width + x
                 guard pixelIndex < document.targetColorIndexByPixel.count, !bitset.contains(pixelIndex) else { continue }
 
                 let targetID = Int(document.targetColorIndexByPixel[pixelIndex])
                 guard targetID > 0, paletteByID[targetID] != nil else { continue }
 
-                let rect = geometry.rect(for: PixelCoordinate(x: x, y: y))
                 let text = Text("\(targetID)").font(.system(size: fontSize, weight: .semibold, design: .rounded)).foregroundStyle(.black.opacity(0.72))
-                context.draw(text, at: CGPoint(x: rect.midX, y: rect.midY), anchor: .center)
+                context.draw(text, at: CGPoint(x: origin.x + CGFloat(x) * cellSize + cellSize / 2, y: centerY), anchor: .center)
             }
         }
     }

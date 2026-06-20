@@ -56,4 +56,17 @@ nonisolated struct PixelGeometry: Equatable, Sendable {
             height: cellSize
         )
     }
+
+    func visiblePixelRange(in viewport: CGRect) -> (x: Range<Int>, y: Range<Int>)? {
+        guard cellSize > 0 else { return nil }
+
+        let origin = origin
+        let minX = max(0, Int(floor((viewport.minX - origin.x) / cellSize)))
+        let maxX = min(imageSize.width, Int(ceil((viewport.maxX - origin.x) / cellSize)))
+        let minY = max(0, Int(floor((viewport.minY - origin.y) / cellSize)))
+        let maxY = min(imageSize.height, Int(ceil((viewport.maxY - origin.y) / cellSize)))
+
+        guard minX < maxX, minY < maxY else { return nil }
+        return (minX..<maxX, minY..<maxY)
+    }
 }

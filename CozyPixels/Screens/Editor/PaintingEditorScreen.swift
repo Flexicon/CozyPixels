@@ -17,6 +17,7 @@ struct PaintingEditorScreen: View {
     @State private var errorMessage: String?
     @State private var saveErrorMessage: String?
     @State private var resetConfirmationPresented = false
+    @State private var previewSaveTask: Task<Void, Never>?
 
     private let store = try? PaintingStore()
     private let previewRenderer = PreviewRenderer()
@@ -107,6 +108,9 @@ struct PaintingEditorScreen: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This clears completed pixels and wrong attempts for this painting.")
+        }
+        .onDisappear {
+            previewSaveTask?.cancel()
         }
     }
 
@@ -237,11 +241,15 @@ struct PaintingEditorScreen: View {
         do {
             try store.savePaintingDocument(document, for: painting.id)
             if updatePreview {
-                guard let previewData = previewRenderer.pngData(for: document) else {
-                    throw EditorPersistenceError.previewGenerationFailed
-                }
-                try store.savePreviewPNG(previewData, for: painting.id)
                 painting.previewFilename = PaintingStore.previewFilename
+                let paintingID = painting.id
+                let previewRenderer = previewRenderer
+                previewSaveTask?.cancel()
+                previewSaveTask = Task.detached(priority: .utility) {
+                    guard let previewData = previewRenderer.pngData(for: document), !Task.isCancelled else { return }
+                    guard let previewStore = try? PaintingStore() else { return }
+                    try? previewStore.savePreviewPNG(previewData, for: paintingID)
+                }
             }
             try modelContext.save()
             saveErrorMessage = nil
@@ -268,10 +276,6 @@ struct PaintingEditorScreen: View {
             counts[colorID, default: 0] += 1
         }
     }
-}
-
-private enum EditorPersistenceError: Error {
-    case previewGenerationFailed
 }
 
 private struct StrokeChange {
