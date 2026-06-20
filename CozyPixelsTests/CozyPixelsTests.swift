@@ -327,7 +327,7 @@ struct CozyPixelsTests {
     }
 
     @Test func paintingEngineDuplicateWrongAttemptIsIgnored() {
-        var document = samplePaintingDocument()
+        var document = unpaintedPaintingDocument()
         document.wrongAttempts = [WrongAttempt(pixelIndex: 0, attemptedPaletteColorID: 2)]
 
         let result = PaintingEngine().paintPixel(at: 0, selectedPaletteColorID: 2, in: &document)
@@ -346,6 +346,21 @@ struct CozyPixelsTests {
         #expect(result == .changed(PaintPixelChange(pixelIndex: 0, completedDelta: 1, previousWrongAttempt: wrongAttempt)))
         #expect(document.wrongAttempts.isEmpty)
         #expect(Bitset(data: document.correctPaintedBitset, bitCount: 4).contains(0))
+    }
+
+    @Test func paintingEngineWrongPaintOverCorrectPixelReopensProgress() {
+        var document = unpaintedPaintingDocument()
+        var bitset = Bitset(data: document.correctPaintedBitset, bitCount: 4)
+        bitset.set(0)
+        document.correctPaintedBitset = bitset.data
+
+        let result = PaintingEngine().paintPixel(at: 0, selectedPaletteColorID: 2, in: &document)
+
+        #expect(result == .changed(PaintPixelChange(pixelIndex: 0, completedDelta: -1)))
+        #expect(Bitset(data: document.correctPaintedBitset, bitCount: 4).contains(0) == false)
+        #expect(document.wrongAttempts.count == 1)
+        #expect(document.wrongAttempts.first?.pixelIndex == 0)
+        #expect(document.wrongAttempts.first?.attemptedPaletteColorID == 2)
     }
 
     @Test func importedImageCreatesPaintingImmediately() throws {

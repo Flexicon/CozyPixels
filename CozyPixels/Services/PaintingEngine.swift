@@ -23,23 +23,29 @@ nonisolated struct PaintingEngine: Sendable {
         guard targetColorID > 0 else { return .unchanged }
 
         var bitset = Bitset(data: document.correctPaintedBitset, bitCount: document.width * document.height)
-        guard !bitset.contains(pixelIndex) else { return .unchanged }
+        let wasCorrect = bitset.contains(pixelIndex)
 
         let previousWrongAttempt = document.wrongAttempts.first { $0.pixelIndex == pixelIndex }
 
         if selectedPaletteColorID == targetColorID {
+            guard !wasCorrect else { return .unchanged }
             bitset.set(pixelIndex)
             document.correctPaintedBitset = bitset.data
             document.wrongAttempts.removeAll { $0.pixelIndex == pixelIndex }
             return .changed(PaintPixelChange(pixelIndex: pixelIndex, completedDelta: 1, previousWrongAttempt: previousWrongAttempt))
         }
 
-        if previousWrongAttempt?.attemptedPaletteColorID == selectedPaletteColorID {
+        if !wasCorrect, previousWrongAttempt?.attemptedPaletteColorID == selectedPaletteColorID {
             return .unchanged
+        }
+
+        if wasCorrect {
+            bitset.set(pixelIndex, to: false)
+            document.correctPaintedBitset = bitset.data
         }
 
         document.wrongAttempts.removeAll { $0.pixelIndex == pixelIndex }
         document.wrongAttempts.append(WrongAttempt(pixelIndex: pixelIndex, attemptedPaletteColorID: selectedPaletteColorID))
-        return .changed(PaintPixelChange(pixelIndex: pixelIndex, completedDelta: 0, previousWrongAttempt: previousWrongAttempt))
+        return .changed(PaintPixelChange(pixelIndex: pixelIndex, completedDelta: wasCorrect ? -1 : 0, previousWrongAttempt: previousWrongAttempt))
     }
 }
