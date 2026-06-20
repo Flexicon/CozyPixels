@@ -11,13 +11,15 @@ struct EditorToolbar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
                     .lineLimit(1)
-                Text(progressText)
-                    .font(.caption)
+                Text("\(progressText) complete")
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+                ProgressView(value: progressValue)
+                    .frame(maxWidth: 160)
             }
 
             Spacer()
@@ -39,5 +41,10 @@ struct EditorToolbar: View {
             Button("Reset", systemImage: "arrow.counterclockwise", role: .destructive, action: resetAction)
                 .labelStyle(.iconOnly)
         }
+    }
+
+    private var progressValue: Double {
+        let numberText = progressText.replacingOccurrences(of: "%", with: "")
+        return (Double(numberText) ?? 0) / 100
     }
 }

@@ -55,6 +55,10 @@ struct GalleryScreen: View {
         do {
             items = try store.loadItems()
             errorMessage = nil
+        } catch GalleryStoreError.missingManifest {
+            errorMessage = "The bundled gallery manifest is missing. Reinstall or update the app."
+        } catch GalleryStoreError.corruptManifest {
+            errorMessage = "The bundled gallery manifest is corrupt. Reinstall or update the app."
         } catch {
             errorMessage = "Bundled gallery examples could not be loaded."
         }
@@ -108,11 +112,15 @@ struct GalleryAssetImage: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.secondarySystemBackground))
         } else {
-            Image(systemName: "photo")
-                .font(.system(size: 44))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(.secondarySystemBackground))
+            VStack(spacing: 10) {
+                Image(systemName: "photo.badge.exclamationmark")
+                    .font(.system(size: 38))
+                Text("Missing Asset")
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.secondarySystemBackground))
         }
     }
 }

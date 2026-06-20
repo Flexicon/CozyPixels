@@ -153,15 +153,22 @@ struct GalleryDetailScreen: View {
 
             let paintingStore = try PaintingStore()
             try paintingStore.savePaintingDocument(document, for: painting.id)
-            if let previewData = PreviewRenderer().pngData(for: document) {
-                try paintingStore.savePreviewPNG(previewData, for: painting.id)
+            guard let previewData = PreviewRenderer().pngData(for: document) else {
+                throw GalleryCreationError.previewGenerationFailed
             }
+            try paintingStore.savePreviewPNG(previewData, for: painting.id)
 
             modelContext.insert(painting)
             try modelContext.save()
             createdPainting = painting
+        } catch GalleryStoreError.missingAsset(let assetName) {
+            errorMessage = "The gallery asset \"\(assetName)\" is missing."
         } catch {
             errorMessage = "Could not create this gallery painting. Please try again."
         }
     }
+}
+
+private enum GalleryCreationError: Error {
+    case previewGenerationFailed
 }

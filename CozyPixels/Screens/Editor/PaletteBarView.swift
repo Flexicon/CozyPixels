@@ -13,25 +13,12 @@ struct PaletteBarView: View {
                     Button {
                         selectedPaletteColorID = color.id
                     } label: {
-                        VStack(spacing: 6) {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(color.swiftUIColor)
-                                .frame(width: 58, height: 42)
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .stroke(selectedPaletteColorID == color.id ? Color.accentColor : Color.secondary.opacity(0.35), lineWidth: selectedPaletteColorID == color.id ? 4 : 1)
-                                }
-
-                            Text("#\(color.id)")
-                                .font(.caption.bold())
-
-                            Text("\(completedCountsByColorID[color.id, default: 0])/\(totalCountsByColorID[color.id, default: 0])")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(8)
-                        .background(selectedPaletteColorID == color.id ? Color.accentColor.opacity(0.12) : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        PaletteColorButtonLabel(
+                            color: color,
+                            isSelected: selectedPaletteColorID == color.id,
+                            completedCount: completedCountsByColorID[color.id, default: 0],
+                            totalCount: totalCountsByColorID[color.id, default: 0]
+                        )
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Color \(color.id)")
@@ -39,6 +26,53 @@ struct PaletteBarView: View {
             }
             .padding(.horizontal)
         }
+    }
+}
+
+private struct PaletteColorButtonLabel: View {
+    let color: PaletteColor
+    let isSelected: Bool
+    let completedCount: Int
+    let totalCount: Int
+
+    var body: some View {
+        VStack(spacing: 6) {
+            swatch
+
+            Text("#\(color.id)")
+                .font(.callout.bold())
+                .foregroundStyle(.primary)
+                .minimumScaleFactor(0.8)
+
+            Text("\(completedCount)/\(totalCount)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(8)
+        .background(isSelected ? Color.accentColor.opacity(0.16) : Color.clear)
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var swatch: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(color.swiftUIColor)
+            .frame(width: 58, height: 42)
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.35), lineWidth: isSelected ? 4 : 1)
+            }
+            .overlay(alignment: .topTrailing) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Color.white, Color.accentColor)
+                        .padding(4)
+                }
+            }
     }
 }
 

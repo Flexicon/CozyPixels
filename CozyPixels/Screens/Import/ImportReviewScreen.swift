@@ -65,7 +65,7 @@ struct ImportReviewScreen: View {
             try await onCreatePainting(title.trimmingCharacters(in: .whitespacesAndNewlines))
             dismiss()
         } catch {
-            errorMessage = "Could not save this painting. Please try again."
+            errorMessage = "Could not save this painting or its preview. Please try again."
             isCreating = false
         }
     }

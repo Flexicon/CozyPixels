@@ -460,7 +460,7 @@ Acceptance criteria:
 
 ## Phase 10 — Polish and Error States
 
-Status: pending
+Status: in progress
 
 Add user-facing states:
 

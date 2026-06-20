@@ -84,9 +84,10 @@ struct ImportImageButton: View {
 
         let store = try PaintingStore()
         try store.savePaintingDocument(result.document, for: painting.id)
-        if let previewData = PreviewRenderer().pngData(for: result.document) {
-            try store.savePreviewPNG(previewData, for: painting.id)
+        guard let previewData = PreviewRenderer().pngData(for: result.document) else {
+            throw ImportCreationError.previewGenerationFailed
         }
+        try store.savePreviewPNG(previewData, for: painting.id)
 
         modelContext.insert(painting)
         try modelContext.save()
@@ -107,6 +108,10 @@ struct ImportImageButton: View {
             return "The selected image could not be imported. Try a smaller pixel-art PNG or JPG."
         }
     }
+}
+
+private enum ImportCreationError: Error {
+    case previewGenerationFailed
 }
 
 extension ImageImportResult: Identifiable {

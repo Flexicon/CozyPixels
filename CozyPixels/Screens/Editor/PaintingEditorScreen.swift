@@ -15,6 +15,7 @@ struct PaintingEditorScreen: View {
     @State private var processedPixelsInStroke: Set<Int> = []
     @State private var strokeHistory: [StrokeChange] = []
     @State private var errorMessage: String?
+    @State private var saveErrorMessage: String?
     @State private var resetConfirmationPresented = false
 
     private let store = try? PaintingStore()
@@ -60,6 +61,24 @@ struct PaintingEditorScreen: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.secondarySystemBackground))
+            }
+
+            if let saveErrorMessage {
+                Label(saveErrorMessage, systemImage: "exclamationmark.triangle")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.red)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red.opacity(0.08))
+            } else if painting.isCompleted {
+                Label("Completed", systemImage: "checkmark.seal.fill")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.green)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.green.opacity(0.10))
             }
 
             Divider()
@@ -135,6 +154,10 @@ struct PaintingEditorScreen: View {
             document = loadedDocument
             selectedPaletteColorID = selectedPaletteColorID ?? loadedDocument.palette.first?.id
             errorMessage = nil
+        } catch PaintingStoreError.missingPaintingDocument {
+            errorMessage = "This painting file is missing. Delete it from Home or restore it from a backup."
+        } catch PaintingStoreError.corruptPaintingDocument {
+            errorMessage = "This painting file is corrupt and cannot be opened."
         } catch {
             errorMessage = "This painting could not be loaded."
         }
@@ -221,17 +244,25 @@ struct PaintingEditorScreen: View {
     }
 
     private func persistDocument(updatePreview: Bool = false) {
-        guard let document, let store else { return }
+        guard let document else { return }
+        guard let store else {
+            saveErrorMessage = "Painting storage is unavailable. Your latest change could not be saved."
+            return
+        }
 
         do {
             try store.savePaintingDocument(document, for: painting.id)
-            if updatePreview, let previewData = previewRenderer.pngData(for: document) {
+            if updatePreview {
+                guard let previewData = previewRenderer.pngData(for: document) else {
+                    throw EditorPersistenceError.previewGenerationFailed
+                }
                 try store.savePreviewPNG(previewData, for: painting.id)
                 painting.previewFilename = PaintingStore.previewFilename
             }
             try modelContext.save()
+            saveErrorMessage = nil
         } catch {
-            errorMessage = "Your latest change could not be saved."
+            saveErrorMessage = "Your latest change could not be saved."
         }
     }
 
@@ -253,6 +284,10 @@ struct PaintingEditorScreen: View {
             counts[colorID, default: 0] += 1
         }
     }
+}
+
+private enum EditorPersistenceError: Error {
+    case previewGenerationFailed
 }
 
 private struct StrokeChange {
