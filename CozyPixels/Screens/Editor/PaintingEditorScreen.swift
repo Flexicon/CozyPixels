@@ -41,7 +41,7 @@ struct PaintingEditorScreen: View {
                             showNumbers: showNumbers,
                             resetToken: canvasResetToken,
                             onTapPixel: { pixelIndex in
-                                paint(pixelIndex: pixelIndex, document: document, updatePreview: true)
+                                paint(pixelIndex: pixelIndex, document: document, mode: .allowWrongAttempts, updatePreview: true)
                             },
                             onStrokePixel: { pixelIndex, phase in
                                 handlePaintStroke(pixelIndex: pixelIndex, phase: phase)
@@ -122,7 +122,7 @@ struct PaintingEditorScreen: View {
             activeStrokePaletteColorID = selectedPaletteColorID
         case .changed:
             guard let document else { return }
-            paint(pixelIndex: pixelIndex, document: document, updatePreview: false)
+            paint(pixelIndex: pixelIndex, document: document, mode: .correctOnly, updatePreview: false)
         case .ended:
             if strokeDidChange {
                 persistDocument(updatePreview: true)
@@ -160,12 +160,12 @@ struct PaintingEditorScreen: View {
         }
     }
 
-    private func paint(pixelIndex: Int, document currentDocument: PaintingDocument, updatePreview: Bool) {
+    private func paint(pixelIndex: Int, document currentDocument: PaintingDocument, mode: PaintPixelMode, updatePreview: Bool) {
         guard let selectedPaletteColorID = activeStrokePaletteColorID ?? selectedPaletteColorID else { return }
         guard pixelIndex < currentDocument.targetColorIndexByPixel.count else { return }
 
         var updatedDocument = currentDocument
-        let result = paintingEngine.paintPixel(at: pixelIndex, selectedPaletteColorID: selectedPaletteColorID, in: &updatedDocument)
+        let result = paintingEngine.paintPixel(at: pixelIndex, selectedPaletteColorID: selectedPaletteColorID, mode: mode, in: &updatedDocument)
         guard case .changed(let change) = result else { return }
 
         let wasCompleted = painting.isCompleted

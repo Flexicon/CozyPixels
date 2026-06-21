@@ -5,6 +5,11 @@ nonisolated enum PaintPixelResult: Equatable, Sendable {
     case changed(PaintPixelChange)
 }
 
+nonisolated enum PaintPixelMode: Equatable, Sendable {
+    case allowWrongAttempts
+    case correctOnly
+}
+
 nonisolated struct PaintPixelChange: Equatable, Sendable {
     var pixelIndex: Int
     var completedDelta: Int
@@ -15,6 +20,7 @@ nonisolated struct PaintingEngine: Sendable {
     func paintPixel(
         at pixelIndex: Int,
         selectedPaletteColorID: Int,
+        mode: PaintPixelMode = .allowWrongAttempts,
         in document: inout PaintingDocument
     ) -> PaintPixelResult {
         guard pixelIndex >= 0, pixelIndex < document.targetColorIndexByPixel.count else { return .unchanged }
@@ -38,6 +44,8 @@ nonisolated struct PaintingEngine: Sendable {
         if !wasCorrect, previousWrongAttempt?.attemptedPaletteColorID == selectedPaletteColorID {
             return .unchanged
         }
+
+        guard mode == .allowWrongAttempts else { return .unchanged }
 
         if wasCorrect {
             bitset.set(pixelIndex, to: false)

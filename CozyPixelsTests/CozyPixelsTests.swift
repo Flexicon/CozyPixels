@@ -470,6 +470,26 @@ struct CozyPixelsTests {
         #expect(document.wrongAttempts.first?.attemptedPaletteColorID == 2)
     }
 
+    @Test func paintingEngineCorrectOnlyWrongPaintIsIgnored() {
+        var document = unpaintedPaintingDocument()
+
+        let result = PaintingEngine().paintPixel(at: 0, selectedPaletteColorID: 2, mode: .correctOnly, in: &document)
+
+        #expect(result == .unchanged)
+        #expect(document.wrongAttempts.isEmpty)
+        #expect(Bitset(data: document.correctPaintedBitset, bitCount: 4).contains(0) == false)
+    }
+
+    @Test func paintingEngineCorrectOnlyCorrectPaintStillIncrementsProgress() {
+        var document = unpaintedPaintingDocument()
+
+        let result = PaintingEngine().paintPixel(at: 0, selectedPaletteColorID: 1, mode: .correctOnly, in: &document)
+
+        #expect(result == .changed(PaintPixelChange(pixelIndex: 0, completedDelta: 1)))
+        #expect(document.wrongAttempts.isEmpty)
+        #expect(Bitset(data: document.correctPaintedBitset, bitCount: 4).contains(0))
+    }
+
     @Test func paintingEngineDuplicateWrongAttemptIsIgnored() {
         var document = unpaintedPaintingDocument()
         document.wrongAttempts = [WrongAttempt(pixelIndex: 0, attemptedPaletteColorID: 2)]
