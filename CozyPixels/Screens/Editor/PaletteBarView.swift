@@ -10,22 +10,43 @@ struct PaletteBarView: View {
     }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(unfinishedPalette) { color in
-                    Button {
-                        selectedPaletteColorID = color.id
-                    } label: {
-                        PaletteColorButtonLabel(
-                            color: color,
-                            isSelected: selectedPaletteColorID == color.id
-                        )
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(unfinishedPalette) { color in
+                        Button {
+                            selectedPaletteColorID = color.id
+                        } label: {
+                            PaletteColorButtonLabel(
+                                color: color,
+                                isSelected: selectedPaletteColorID == color.id
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Color \(color.id)")
+                        .id(color.id)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Color \(color.id)")
                 }
+                .padding(.horizontal)
             }
-            .padding(.horizontal)
+            .onAppear {
+                scrollSelectedColorIntoView(with: proxy, animated: false)
+            }
+            .onChange(of: selectedPaletteColorID) { _, _ in
+                scrollSelectedColorIntoView(with: proxy, animated: true)
+            }
+        }
+    }
+
+    private func scrollSelectedColorIntoView(with proxy: ScrollViewProxy, animated: Bool) {
+        guard let selectedPaletteColorID, unfinishedColorIDs.contains(selectedPaletteColorID) else { return }
+
+        if animated {
+            withAnimation(.snappy) {
+                proxy.scrollTo(selectedPaletteColorID, anchor: .center)
+            }
+        } else {
+            proxy.scrollTo(selectedPaletteColorID, anchor: .center)
         }
     }
 }

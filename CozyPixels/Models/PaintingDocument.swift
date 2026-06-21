@@ -8,6 +8,7 @@ nonisolated struct PaintingDocument: Codable, Equatable, Sendable {
     var targetColorIndexByPixel: [UInt16]
     var correctPaintedBitset: Data
     var wrongAttempts: [WrongAttempt]
+    var lastSelectedPaletteColorID: Int?
 
     init(
         version: Int = 1,
@@ -16,7 +17,8 @@ nonisolated struct PaintingDocument: Codable, Equatable, Sendable {
         palette: [PaletteColor],
         targetColorIndexByPixel: [UInt16],
         correctPaintedBitset: Data,
-        wrongAttempts: [WrongAttempt] = []
+        wrongAttempts: [WrongAttempt] = [],
+        lastSelectedPaletteColorID: Int? = nil
     ) {
         self.version = version
         self.width = width
@@ -25,6 +27,7 @@ nonisolated struct PaintingDocument: Codable, Equatable, Sendable {
         self.targetColorIndexByPixel = targetColorIndexByPixel
         self.correctPaintedBitset = correctPaintedBitset
         self.wrongAttempts = wrongAttempts
+        self.lastSelectedPaletteColorID = lastSelectedPaletteColorID
     }
 }
 

@@ -18,6 +18,7 @@ struct PaintingEditorScreen: View {
     @State private var errorMessage: String?
     @State private var saveErrorMessage: String?
     @State private var previewSaveTask: Task<Void, Never>?
+    @State private var isLoadingDocument = false
 
     private let store = try? PaintingStore()
     private let previewRenderer = PreviewRenderer()
@@ -107,6 +108,8 @@ struct PaintingEditorScreen: View {
             }
         }
         .onChange(of: selectedPaletteColorID) { _, _ in
+            guard !isLoadingDocument else { return }
+            persistSelectedPaletteColorID()
             rebuildPixelImage()
         }
     }
@@ -133,13 +136,15 @@ struct PaintingEditorScreen: View {
 
     private func loadDocument() {
         do {
+            isLoadingDocument = true
+            defer { isLoadingDocument = false }
             guard let store else { throw PaintingStoreError.missingPaintingDocument(URL(filePath: painting.projectBlobFilename)) }
             let loadedDocument = try store.loadPaintingDocument(for: painting.id)
             let loadedCache = PixelCanvasRenderCache(document: loadedDocument)
             document = loadedDocument
             renderCache = loadedCache
             unfinishedColorIDs = makeUnfinishedColorIDs(for: loadedDocument)
-            updateSelectedPaletteColorID(for: loadedDocument)
+            updateSelectedPaletteColorID(for: loadedDocument, preferredColorID: loadedDocument.lastSelectedPaletteColorID)
             pixelImage = pixelImageRenderer.makeImage(document: loadedDocument, cache: loadedCache, selectedPaletteColorID: selectedPaletteColorID)
             errorMessage = nil
         } catch PaintingStoreError.missingPaintingDocument {
@@ -173,7 +178,9 @@ struct PaintingEditorScreen: View {
             canvasResetToken += 1
             showGrid = false
         }
-        updateSelectedPaletteColorID(for: updatedDocument)
+        updateSelectedPaletteColorID(for: updatedDocument, preferredColorID: selectedPaletteColorID)
+        updatedDocument.lastSelectedPaletteColorID = selectedPaletteColorID
+        document = updatedDocument
         pixelImage = pixelImageRenderer.makeImage(document: updatedDocument, cache: updatedCache, selectedPaletteColorID: selectedPaletteColorID)
 
         if updatePreview {
@@ -184,9 +191,10 @@ struct PaintingEditorScreen: View {
         }
     }
 
-    private func updateSelectedPaletteColorID(for document: PaintingDocument) {
+    private func updateSelectedPaletteColorID(for document: PaintingDocument, preferredColorID: Int?) {
         let remainingColorIDs = remainingColorIDs(for: document.palette)
-        if let selectedPaletteColorID, remainingColorIDs.contains(selectedPaletteColorID) {
+        if let preferredColorID, remainingColorIDs.contains(preferredColorID) {
+            selectedPaletteColorID = preferredColorID
             return
         }
         selectedPaletteColorID = remainingColorIDs.first
@@ -222,6 +230,15 @@ struct PaintingEditorScreen: View {
         } catch {
             saveErrorMessage = "Your latest change could not be saved."
         }
+    }
+
+    private func persistSelectedPaletteColorID() {
+        guard var updatedDocument = document else { return }
+        guard updatedDocument.lastSelectedPaletteColorID != selectedPaletteColorID else { return }
+
+        updatedDocument.lastSelectedPaletteColorID = selectedPaletteColorID
+        document = updatedDocument
+        persistDocument()
     }
 
     private func makeUnfinishedColorIDs(for document: PaintingDocument) -> Set<Int> {
