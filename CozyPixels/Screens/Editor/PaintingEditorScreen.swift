@@ -42,7 +42,7 @@ struct PaintingEditorScreen: View {
                                 paint(pixelIndex: pixelIndex, document: document, updatePreview: true)
                             },
                             onStrokePixel: { pixelIndex, phase in
-                                handlePaintStroke(pixelIndex: pixelIndex, phase: phase, document: document)
+                                handlePaintStroke(pixelIndex: pixelIndex, phase: phase)
                             }
                         )
                         .frame(width: proxy.size.width, height: proxy.size.height)
@@ -101,18 +101,22 @@ struct PaintingEditorScreen: View {
             loadDocument()
         }
         .onDisappear {
-            previewSaveTask?.cancel()
+            if strokeDidChange {
+                persistDocument(updatePreview: true)
+                strokeDidChange = false
+            }
         }
         .onChange(of: selectedPaletteColorID) { _, _ in
             rebuildPixelImage()
         }
     }
 
-    private func handlePaintStroke(pixelIndex: Int, phase: CanvasInputPhase, document: PaintingDocument) {
+    private func handlePaintStroke(pixelIndex: Int, phase: CanvasInputPhase) {
         switch phase {
         case .began:
             strokeDidChange = false
         case .changed:
+            guard let document else { return }
             paint(pixelIndex: pixelIndex, document: document, updatePreview: false)
         case .ended:
             if strokeDidChange {

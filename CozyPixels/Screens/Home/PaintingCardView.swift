@@ -3,6 +3,7 @@ import SwiftUI
 struct PaintingCardView: View {
     let painting: Painting
 
+    @State private var previewImage: UIImage?
     @State private var regeneratedPreviewImage: UIImage?
 
     private var progress: Double {
@@ -19,6 +20,9 @@ struct PaintingCardView: View {
             preview
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .task(id: painting.updatedAt) {
+                    await loadPreviewImage()
+                }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(painting.title)
@@ -50,7 +54,7 @@ struct PaintingCardView: View {
 
     @ViewBuilder
     private var preview: some View {
-        if let image = cachedPreviewImage() {
+        if let image = previewImage {
             Image(uiImage: image)
                 .resizable()
                 .interpolation(.none)
@@ -66,9 +70,14 @@ struct PaintingCardView: View {
                 .background(Color(.secondarySystemBackground))
         } else {
             PlaceholderPreview(progress: progress, isCompleted: painting.isCompleted)
-                .task(id: painting.updatedAt) {
-                    regeneratedPreviewImage = await regenerateMissingPreviewImage()
-                }
+        }
+    }
+
+    private func loadPreviewImage() async {
+        regeneratedPreviewImage = nil
+        previewImage = cachedPreviewImage()
+        if previewImage == nil {
+            regeneratedPreviewImage = await regenerateMissingPreviewImage(scale: UIScreen.main.scale)
         }
     }
 
@@ -77,10 +86,10 @@ struct PaintingCardView: View {
         guard let store = try? PaintingStore() else { return nil }
         let url = store.previewURL(for: painting.id)
         guard let data = try? Data(contentsOf: url) else { return nil }
-        return UIImage(data: data)
+        return UIImage(data: data, scale: UIScreen.main.scale)
     }
 
-    private func regenerateMissingPreviewImage() async -> UIImage? {
+    private func regenerateMissingPreviewImage(scale: CGFloat) async -> UIImage? {
         let paintingID = painting.id
 
         return await Task.detached(priority: .utility) { () -> UIImage? in
@@ -89,7 +98,7 @@ struct PaintingCardView: View {
             guard let previewData = PreviewRenderer().pngData(for: document) else { return nil }
 
             try? store.savePreviewPNG(previewData, for: paintingID)
-            return UIImage(data: previewData)
+            return UIImage(data: previewData, scale: scale)
         }.value
     }
 }
