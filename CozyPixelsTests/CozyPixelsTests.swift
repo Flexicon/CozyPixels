@@ -366,6 +366,63 @@ struct CozyPixelsTests {
         #expect(ColorQuantizer().quantize(pixels, maxColors: 32) == pixels)
     }
 
+    @Test func colorQuantizerRespectsMaximumColorCount() {
+        let pixels = variedPixels(count: 80)
+
+        let quantizedPixels = ColorQuantizer().quantize(pixels, maxColors: 8)
+        let paintableColors = Set(quantizedPixels.filter { $0.alpha != 0 })
+
+        #expect(quantizedPixels.count == pixels.count)
+        #expect(paintableColors.count <= 8)
+    }
+
+    @Test func colorQuantizerPreservesTransparentPixelsExactly() {
+        let transparentPixel = RGBAPixel(red: 13, green: 21, blue: 34, alpha: 0)
+        var pixels = variedPixels(count: 40)
+        pixels.insert(transparentPixel, at: 10)
+        pixels.append(transparentPixel)
+
+        let quantizedPixels = ColorQuantizer().quantize(pixels, maxColors: 4)
+
+        #expect(quantizedPixels.count == pixels.count)
+        #expect(quantizedPixels[10] == transparentPixel)
+        #expect(quantizedPixels.last == transparentPixel)
+    }
+
+    @Test func colorQuantizerMapsPaintablePixelsToBlackWhenMaximumIsZero() {
+        let pixels = [
+            RGBAPixel(red: 255, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 0, green: 255, blue: 0, alpha: 128),
+            RGBAPixel(red: 9, green: 8, blue: 7, alpha: 0)
+        ]
+
+        let quantizedPixels = ColorQuantizer().quantize(pixels, maxColors: 0)
+
+        #expect(quantizedPixels == [
+            RGBAPixel(red: 0, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 0, green: 0, blue: 0, alpha: 128),
+            RGBAPixel(red: 9, green: 8, blue: 7, alpha: 0)
+        ])
+    }
+
+    @Test func colorQuantizerProducesStableRepresentativesForKnownInput() {
+        let pixels = [
+            RGBAPixel(red: 0, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 10, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 240, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 250, green: 0, blue: 0, alpha: 255)
+        ]
+
+        let quantizedPixels = ColorQuantizer().quantize(pixels, maxColors: 2)
+
+        #expect(quantizedPixels == [
+            RGBAPixel(red: 5, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 5, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 245, green: 0, blue: 0, alpha: 255),
+            RGBAPixel(red: 245, green: 0, blue: 0, alpha: 255)
+        ])
+    }
+
     @Test func canvasTransformMapsScreenPointToPixel() {
         let transform = CanvasTransform()
         let coordinate = transform.screenPointToPixel(
