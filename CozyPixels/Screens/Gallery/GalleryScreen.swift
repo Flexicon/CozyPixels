@@ -1,9 +1,14 @@
+import SwiftData
 import SwiftUI
 
 struct GalleryScreen: View {
+    @Environment(\.modelContext) private var modelContext
     @State private var items: [GalleryItem] = []
     @State private var searchText = ""
     @State private var errorMessage: String?
+    @State private var isCreating = false
+
+    let onOpenPainting: (Painting) -> Void
 
     private let store = GalleryStore()
     private let columns = [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 16)]
@@ -31,10 +36,15 @@ struct GalleryScreen: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(filteredItems) { item in
-                            NavigationLink(value: item) {
+                            Button {
+                                Task {
+                                    await createAndOpenPainting(from: item)
+                                }
+                            } label: {
                                 GalleryCardView(item: item)
                             }
                             .buttonStyle(.plain)
+                            .disabled(isCreating)
                         }
                     }
                     .padding()
@@ -43,9 +53,6 @@ struct GalleryScreen: View {
         }
         .navigationTitle("Gallery")
         .searchable(text: $searchText, prompt: "Search title or tags")
-        .navigationDestination(for: GalleryItem.self) { item in
-            GalleryDetailScreen(item: item)
-        }
         .task {
             loadItems()
         }
@@ -63,6 +70,49 @@ struct GalleryScreen: View {
             errorMessage = "Bundled gallery examples could not be loaded."
         }
     }
+
+    @MainActor
+    private func createAndOpenPainting(from item: GalleryItem) async {
+        isCreating = true
+        defer { isCreating = false }
+
+        do {
+            let data = try store.data(for: item)
+            let result = try ImageImportService().importTrustedImageData(data)
+            let now = Date()
+            let painting = Painting(
+                title: item.title,
+                sourceType: .gallery,
+                createdAt: now,
+                updatedAt: now,
+                width: result.document.width,
+                height: result.document.height,
+                paletteColorCount: result.document.palette.count,
+                previewFilename: PaintingStore.previewFilename,
+                completedPixelCount: 0,
+                totalPaintablePixelCount: result.paintablePixelCount
+            )
+
+            let paintingStore = try PaintingStore()
+            try paintingStore.savePaintingDocument(result.document, for: painting.id)
+            guard let previewData = PreviewRenderer().pngData(for: result.document) else {
+                throw GalleryCreationError.previewGenerationFailed
+            }
+            try paintingStore.savePreviewPNG(previewData, for: painting.id)
+
+            modelContext.insert(painting)
+            try modelContext.save()
+            onOpenPainting(painting)
+        } catch GalleryStoreError.missingAsset(let assetName) {
+            errorMessage = "The gallery asset \"\(assetName)\" is missing."
+        } catch {
+            errorMessage = "This gallery image could not be loaded."
+        }
+    }
+}
+
+private enum GalleryCreationError: Error {
+    case previewGenerationFailed
 }
 
 private struct GalleryCardView: View {

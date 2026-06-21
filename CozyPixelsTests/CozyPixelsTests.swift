@@ -470,29 +470,22 @@ struct CozyPixelsTests {
         #expect(painting.totalPaintablePixelCount == 1)
     }
 
-    @Test func galleryImageCreatesPaintingOnlyAfterFirstCorrectPaint() {
-        var document = unpaintedPaintingDocument()
+    @Test func galleryImageCreatesPaintingImmediately() {
+        let document = unpaintedPaintingDocument()
         let galleryItem = GalleryItem(id: "sample", title: "Sample", tags: ["easy"], assetName: "sample", difficulty: "easy")
-        let result = PaintingEngine().paintPixel(at: 0, selectedPaletteColorID: 1, in: &document)
+        let painting = Painting(
+            title: galleryItem.title,
+            sourceType: .gallery,
+            width: document.width,
+            height: document.height,
+            paletteColorCount: document.palette.count,
+            completedPixelCount: 0,
+            totalPaintablePixelCount: 4,
+            isCompleted: false
+        )
 
-        let painting: Painting?
-        if case .changed(let change) = result, change.completedDelta == 1 {
-            painting = Painting(
-                title: galleryItem.title,
-                sourceType: .gallery,
-                width: document.width,
-                height: document.height,
-                paletteColorCount: document.palette.count,
-                completedPixelCount: 1,
-                totalPaintablePixelCount: 4,
-                isCompleted: false
-            )
-        } else {
-            painting = nil
-        }
-
-        #expect(painting?.sourceTypeRawValue == PaintingSourceType.gallery.rawValue)
-        #expect(painting?.completedPixelCount == 1)
+        #expect(painting.sourceTypeRawValue == PaintingSourceType.gallery.rawValue)
+        #expect(painting.completedPixelCount == 0)
     }
 
 }

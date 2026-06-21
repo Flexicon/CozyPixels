@@ -40,14 +40,11 @@ struct HomeScreen: View {
                 }
             }
         }
-        .navigationTitle("Home")
+        .navigationTitle("Your Creations")
         .alert("Reset Failed", isPresented: resetErrorPresented) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(resetErrorMessage ?? "This painting could not be reset.")
-        }
-        .navigationDestination(for: Painting.self) { painting in
-            PaintingEditorScreen(painting: painting)
         }
         .toolbar {
             ImportImageButton()

@@ -63,7 +63,7 @@ Imported images are treated as pixel-art-like assets unless a specific feature i
 
 Gallery images are bundled locally in the app.
 
-A gallery image does not create a user drawing until the user paints at least one correct pixel.
+A gallery image creates a user drawing immediately when opened from Gallery.
 
 Gallery search should support title and tags from a local manifest.
 
@@ -385,7 +385,7 @@ Features:
 * grid/list of available pixel art
 * search by title and tags
 * tap to preview/play
-* no `Painting` created until first correct paint
+* tapping an item creates a `Painting` immediately and opens the editor
 
 Gallery manifest example:
 
@@ -452,7 +452,7 @@ Prioritize:
 * painting wrong pixel
 * preventing duplicate wrong attempts
 * progress calculation
-* gallery item does not create `Painting` until first correct paint
+* gallery item creates `Painting` immediately
 * imported image creates `Painting` immediately
 
 UI tests are optional but useful for launch, navigation, and import smoke coverage.
@@ -504,7 +504,6 @@ CozyPixels/
 
     Gallery/
       GalleryScreen.swift
-      GalleryDetailScreen.swift
 
     Import/
       ImportImageButton.swift
@@ -564,5 +563,5 @@ The original MVP is considered complete. Preserve these baseline capabilities un
 * Numbers appear only when readable.
 * Progress persists after closing and reopening the app.
 * Bundled gallery exists.
-* Gallery image only becomes a `Painting` after the first correct pixel.
+* Gallery image becomes a `Painting` immediately when opened.
 * Completed image displays as fully colored.

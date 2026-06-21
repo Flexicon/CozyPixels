@@ -23,7 +23,7 @@ Implemented:
 * Cached progress previews generated from painting state, not original images.
 * Home grid sorted by `updatedAt` with progress cards, reset, and delete support.
 * Bundled gallery manifest and gallery search.
-* Gallery lifecycle rule: no `Painting` is created until the first correct pixel.
+* Gallery items create paintings immediately and open directly in the editor.
 * Full-screen SwiftUI Canvas editor with pinch zoom, drag pan, tap paint, selected-color highlighting, completion zoom reset, and persisted wrong attempts.
 * Simplified editor palette showing remaining pixel counts on swatches and hiding completed colors.
 * Canvas performance pass with visible-cell culling for pixels, grid, numbers, and checkerboard cells.
