@@ -23,7 +23,7 @@ The app is Apple-device-first. Do not introduce cross-platform frameworks.
 
 ## Dependency Policy
 
-MVP should use Apple frameworks only unless a dependency has a very strong justification.
+The app is native and Apple-device-first, but thoughtful Swift package dependencies are welcome when they make the product better, more robust, or materially reduce maintenance burden. Prefer well-maintained packages with clear licenses, small dependency graphs, iOS support, and no deployment friction.
 
 Preferred Apple APIs:
 
@@ -33,9 +33,9 @@ Preferred Apple APIs:
 * PhotosUI / PhotosPicker for user image import.
 * ImageIO / CoreGraphics for raster loading and decoding.
 * SwiftUI Canvas or a custom drawing surface for the editor.
-* No PencilKit for MVP. Apple Pencil input should work through normal touch handling.
+* Apple Pencil input should work through normal touch handling unless a feature specifically needs PencilKit.
 
-Do not add third-party packages for:
+Avoid third-party packages for core app foundations unless there is a strong product or engineering reason:
 
 * image decoding
 * persistence
@@ -43,7 +43,7 @@ Do not add third-party packages for:
 * grid rendering
 * color palette extraction
 
-A third-party package is allowed only if it materially reduces implementation complexity and does not create deployment friction.
+Good dependency candidates include focused utilities such as phrase/name generation, data-format helpers, diagnostics, or other isolated functionality where a package is more mature than a local reinvention.
 
 ## Core Product Rules
 
@@ -57,7 +57,7 @@ The parser should accept common raster formats supported by ImageIO, especially:
 * JPG/JPEG
 * HEIC if available through the system decoder
 
-For MVP, imported images should be treated as pixel-art-like assets.
+Imported images are treated as pixel-art-like assets unless a specific feature intentionally supports broader photo-to-painting conversion.
 
 ### Gallery Images
 
@@ -67,7 +67,7 @@ A gallery image does not create a user drawing until the user paints at least on
 
 Gallery search should support title and tags from a local manifest.
 
-No backend or CMS for MVP.
+No backend or CMS unless a product decision explicitly adds remote gallery/content features.
 
 ### Drawing Size Limits
 
@@ -89,7 +89,7 @@ Behavior:
 
 ### Palette Extraction
 
-MVP behavior:
+Current behavior:
 
 * Extract exact colors from pixel art images.
 * Preserve alpha handling deterministically.
@@ -108,7 +108,7 @@ Each palette color receives a stable number starting at `1`.
 
 If exact color count is too high after resizing, quantize paintable pixels to the palette limit.
 
-Default MVP threshold:
+Default threshold:
 
 ```txt
 maxPaletteColors = 32
@@ -263,7 +263,7 @@ Rendering states:
 
 Grid overlay:
 
-* Hidden by default in the simplified MVP editor.
+* Hidden by default in the simplified editor.
 * May be reintroduced behind a control later if useful.
 * Should not dominate at low zoom.
 * Use crisp lines aligned to pixel boundaries.
@@ -328,7 +328,7 @@ If the user paints the same wrong color on the same pixel repeatedly, avoid dupl
 
 Apple Pencil should work through standard pointer/touch handling.
 
-Do not add PencilKit for MVP.
+Do not add PencilKit unless the app needs Pencil-specific behavior beyond discrete touch input.
 
 The editor should support:
 
@@ -436,7 +436,7 @@ Generate previews:
 
 Do not regenerate thumbnails on every home render.
 
-A simple MVP strategy is to update the preview after each completed stroke, not every individual pixel during drag.
+A simple strategy is to update the preview after each completed stroke, not every individual pixel during drag.
 
 ## Testing Requirements
 
@@ -455,7 +455,7 @@ Prioritize:
 * gallery item does not create `Painting` until first correct paint
 * imported image creates `Painting` immediately
 
-UI tests are optional for MVP.
+UI tests are optional but useful for launch, navigation, and import smoke coverage.
 
 For routine verification, prefer running only the unit test target to avoid the slower full scheme and current UI test bundle overhead:
 
@@ -532,21 +532,21 @@ CozyPixels/
 * Prefer small, compile-safe commits.
 * Keep `ROADMAP.md` phase `Status:` lines current. Initialize new phases as `Status: pending`, mark the active phase `Status: in progress`, and mark a phase `Status: completed` only after its acceptance criteria are implemented and verified.
 * Do not rewrite large parts of the app without a reason.
-* Do not introduce third-party dependencies without updating this file.
+* Use dependencies pragmatically when they improve quality or reduce wheel-reinvention; update this file if the policy changes.
 * Do not store per-pixel state in SwiftData rows.
 * Do not render per-pixel SwiftUI views.
 * Do not build a backend.
-* Do not build export/share for MVP.
-* Do not build quantization before the exact-color MVP works.
+* Keep export/share work product-driven rather than incidental.
+* Keep quantization deterministic and covered by tests.
 * Keep pure logic testable outside SwiftUI.
 * Keep rendering separate from persistence.
 * Keep coordinate mapping separate from views.
 * Use deterministic data formats.
 * Use explicit errors for import failures.
 
-## MVP Definition of Done
+## Completed MVP Baseline
 
-MVP is complete when:
+The original MVP is considered complete. Preserve these baseline capabilities unless intentionally changing product scope:
 
 * User can import a pixel-art PNG/JPG.
 * App parses dimensions and palette.

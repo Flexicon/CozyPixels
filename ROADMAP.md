@@ -6,9 +6,9 @@ CozyPixels is a native SwiftUI iPadOS/iOS paint-by-number pixel art app.
 
 Users import raster pixel art or start from bundled gallery art. The app converts each image into a finite numbered palette grid, shows an unpainted grayscale canvas, and lets users repaint matching cells by selecting palette colors.
 
-## Current MVP Status
+## Current Product Status
 
-Status: feature-complete, release-hardening pending
+Status: post-MVP, release-hardening pending
 
 Implemented:
 
@@ -38,11 +38,11 @@ xcodebuild test -project CozyPixels.xcodeproj -scheme CozyPixels -destination 'i
 
 Result: passing.
 
-## Release Hardening
+## Post-MVP Release Hardening
 
 Status: next
 
-These are the next implementation steps before calling the MVP shippable.
+These are the next implementation steps before a broader TestFlight/App Store release.
 
 ### 1. Remove Template and Debug Scaffolding
 
@@ -78,7 +78,7 @@ Tasks:
 Acceptance criteria:
 
 * Import, paint, persist, preview, relaunch, and delete work on device.
-* No known crash in normal MVP flows.
+* No known crash in normal import, gallery, editor, persistence, or delete flows.
 
 ### 3. Performance Validation
 
@@ -96,7 +96,7 @@ Acceptance criteria:
 
 * `64x64` drawings feel smooth on target iPad hardware.
 * Larger source imports remain usable after resizing to `64x64` or smaller.
-* No further renderer rewrite is needed for MVP.
+* No further renderer rewrite is needed for the next release.
 
 ### 4. Persistence and Recovery Polish
 
@@ -124,16 +124,16 @@ Tasks:
 * Confirm Photos privacy usage description is present and user-friendly.
 * Confirm app icon and launch appearance.
 * Prepare basic App Store privacy answers.
-* Confirm no third-party dependencies are included.
+* Confirm third-party dependency licenses and privacy behavior are acceptable for App Store review.
 
 Acceptance criteria:
 
 * App archive is ready for TestFlight submission.
 * Privacy behavior matches App Store metadata.
 
-## Post-MVP Backlog
+## Product Backlog
 
-Do not start these until release hardening is complete unless a specific item becomes necessary during QA.
+Prioritize these against release hardening and user-facing impact.
 
 ### Import Improvements
 
@@ -148,7 +148,7 @@ Do not start these until release hardening is complete unless a specific item be
 * Difficulty filters.
 * Categories or featured sections.
 * Gallery item progress badges.
-* Remote CMS or downloadable packs later, not MVP.
+* Remote CMS or downloadable packs later if product scope calls for it.
 
 ### Editor Improvements
 
@@ -174,18 +174,23 @@ Do not start these until release hardening is complete unless a specific item be
 * Share sheet.
 * Timelapse generation.
 
-## Non-Goals For MVP
+### Naming and Metadata
 
-* Backend CMS.
+* Evaluate PhraseKit or a similar focused Swift package for richer fallback painting names.
+* Keep filename-derived imported painting titles when the filename is available.
+
+## Current Non-Goals
+
+* Backend CMS unless remote content becomes a product priority.
 * Accounts or auth.
 * Cloud sync.
-* Export or sharing.
+* Export or sharing until explicitly prioritized.
 * Social features.
 * In-app purchases.
-* Advanced quantization controls.
-* Full photo-to-paint-by-number conversion beyond automatic pixelation and 32-color quantization.
+* Advanced quantization controls until explicitly prioritized.
+* Full photo-to-paint-by-number conversion beyond automatic pixelation and palette quantization.
 * PencilKit freehand drawing.
-* Third-party image decoding, persistence, gestures, grid rendering, or palette extraction.
+* Third-party image decoding, persistence, gestures, grid rendering, or palette extraction unless a package provides a clear reliability or maintenance win.
 
 ## Engineering Rules
 
@@ -197,3 +202,4 @@ Do not start these until release hardening is complete unless a specific item be
 * Keep pure logic testable outside SwiftUI.
 * Use deterministic file formats and explicit user-facing errors.
 * Use simulator destination IDs for `xcodebuild`, not simulator names.
+* Use dependencies pragmatically when they improve the app or avoid fragile local reinvention; keep them native, focused, licensed, and low-friction.
