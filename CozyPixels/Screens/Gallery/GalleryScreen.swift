@@ -158,6 +158,7 @@ struct GalleryAssetImage: View {
             Image(uiImage: image)
                 .resizable()
                 .interpolation(.none)
+                .saturation(0)
                 .scaledToFit()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.secondarySystemBackground))
