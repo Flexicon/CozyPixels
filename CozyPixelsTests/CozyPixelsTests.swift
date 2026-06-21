@@ -314,6 +314,19 @@ struct CozyPixelsTests {
         }
     }
 
+    @Test func imageImportServiceImportsTrustedImagesAboveSourceLimit() throws {
+        let data = try pngData(width: 72, height: 72, pixels: Array(repeating: RGBAPixel(red: 1, green: 2, blue: 3, alpha: 255), count: 72 * 72))
+        let service = ImageImportService(maximumSourceLongestSide: 64, maximumSourceShortestSide: 64)
+
+        let result = try service.importTrustedImageData(data)
+
+        #expect(result.document.width == 64)
+        #expect(result.document.height == 64)
+        #expect(result.originalWidth == 72)
+        #expect(result.originalHeight == 72)
+        #expect(result.wasResized)
+    }
+
     @Test func imageImportServiceQuantizesTooManyColors() throws {
         let pixels = (0..<33).map { RGBAPixel(red: UInt8($0), green: 0, blue: 0, alpha: 255) }
         let image = try cgImage(width: 33, height: 1, pixels: pixels)

@@ -110,7 +110,7 @@ struct GalleryDetailScreen: View {
     private func loadDocument() {
         do {
             let data = try store.data(for: item)
-            importResult = try ImageImportService().importImageData(data)
+            importResult = try ImageImportService().importTrustedImageData(data)
             selectedPaletteColorID = importResult?.document.palette.first?.id
             errorMessage = nil
         } catch {

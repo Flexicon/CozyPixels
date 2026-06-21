@@ -52,15 +52,27 @@ nonisolated struct ImageImportService: Sendable {
     }
 
     func importImageData(_ data: Data) throws -> ImageImportResult {
+        try importImageData(data, validatesSourceDimensions: true)
+    }
+
+    func importTrustedImageData(_ data: Data) throws -> ImageImportResult {
+        try importImageData(data, validatesSourceDimensions: false)
+    }
+
+    private func importImageData(_ data: Data, validatesSourceDimensions: Bool) throws -> ImageImportResult {
         guard let imageSource = CGImageSourceCreateWithData(data as CFData, nil),
               let image = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
             throw ImageImportError.unsupportedImageData
         }
 
-        return try importCGImage(image)
+        return try importCGImage(image, validatesSourceDimensions: validatesSourceDimensions)
     }
 
     func importCGImage(_ image: CGImage) throws -> ImageImportResult {
+        try importCGImage(image, validatesSourceDimensions: true)
+    }
+
+    private func importCGImage(_ image: CGImage, validatesSourceDimensions: Bool) throws -> ImageImportResult {
         let originalWidth = image.width
         let originalHeight = image.height
 
@@ -70,7 +82,7 @@ nonisolated struct ImageImportService: Sendable {
 
         let sourceLongestSide = max(originalWidth, originalHeight)
         let sourceShortestSide = min(originalWidth, originalHeight)
-        guard sourceLongestSide <= maximumSourceLongestSide, sourceShortestSide <= maximumSourceShortestSide else {
+        guard !validatesSourceDimensions || (sourceLongestSide <= maximumSourceLongestSide && sourceShortestSide <= maximumSourceShortestSide) else {
             throw ImageImportError.sourceImageTooLarge(
                 width: originalWidth,
                 height: originalHeight,
