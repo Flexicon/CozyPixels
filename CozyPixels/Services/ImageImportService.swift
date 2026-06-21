@@ -130,12 +130,12 @@ nonisolated struct ImageImportService: Sendable {
     }
 
     private func extraction(from pixels: [RGBAPixel]) throws -> (palette: [PaletteColor], targetColorIndexByPixel: [UInt16], paintablePixelCount: Int, wasQuantized: Bool) {
+        let simplifiedPixels = colorQuantizer.quantize(pixels, maxColors: paletteExtractor.maxPaletteColors)
         do {
-            let extraction = try paletteExtractor.extract(from: pixels)
-            return (extraction.palette, extraction.targetColorIndexByPixel, extraction.paintablePixelCount, false)
+            let extraction = try paletteExtractor.extract(from: simplifiedPixels)
+            return (extraction.palette, extraction.targetColorIndexByPixel, extraction.paintablePixelCount, simplifiedPixels != pixels)
         } catch PaletteExtractorError.tooManyColors {
-            let quantizedPixels = colorQuantizer.quantize(pixels, maxColors: paletteExtractor.maxPaletteColors)
-            let extraction = try paletteExtractor.extract(from: quantizedPixels)
+            let extraction = try paletteExtractor.extract(from: simplifiedPixels)
             return (extraction.palette, extraction.targetColorIndexByPixel, extraction.paintablePixelCount, true)
         }
     }

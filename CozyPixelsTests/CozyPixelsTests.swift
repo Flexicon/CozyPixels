@@ -392,6 +392,21 @@ struct CozyPixelsTests {
         #expect(result.wasQuantized)
     }
 
+    @Test func imageImportServiceMergesVerySimilarColorsUnderPaletteLimit() throws {
+        let pixels = [
+            RGBAPixel(red: 120, green: 80, blue: 40, alpha: 255),
+            RGBAPixel(red: 125, green: 82, blue: 42, alpha: 255),
+            RGBAPixel(red: 10, green: 200, blue: 240, alpha: 255)
+        ]
+        let image = try cgImage(width: 3, height: 1, pixels: pixels)
+
+        let result = try ImageImportService().importCGImage(image)
+
+        #expect(result.document.palette.count == 2)
+        #expect(result.document.targetColorIndexByPixel[0] == result.document.targetColorIndexByPixel[1])
+        #expect(result.wasQuantized)
+    }
+
     @Test func imageImportServiceKeepsTransparentPixelsUnpaintableAfterQuantization() throws {
         var pixels = (0..<33).map { RGBAPixel(red: UInt8($0), green: 0, blue: 0, alpha: 255) }
         pixels.append(RGBAPixel(red: 255, green: 255, blue: 255, alpha: 0))
@@ -419,6 +434,23 @@ struct CozyPixelsTests {
         ]
 
         #expect(ColorQuantizer().quantize(pixels, maxColors: 32) == pixels)
+    }
+
+    @Test func colorQuantizerMergesVerySimilarColorsEvenUnderMaximumColorCount() {
+        let pixels = [
+            RGBAPixel(red: 120, green: 80, blue: 40, alpha: 255),
+            RGBAPixel(red: 125, green: 82, blue: 42, alpha: 255),
+            RGBAPixel(red: 143, green: 87, blue: 47, alpha: 255),
+            RGBAPixel(red: 10, green: 200, blue: 240, alpha: 255)
+        ]
+
+        let quantizedPixels = ColorQuantizer().quantize(pixels, maxColors: 32)
+        let paintableColors = Set(quantizedPixels.filter { $0.alpha != 0 })
+
+        #expect(paintableColors.count == 2)
+        #expect(quantizedPixels[0] == quantizedPixels[1])
+        #expect(quantizedPixels[1] == quantizedPixels[2])
+        #expect(quantizedPixels[3] == pixels[3])
     }
 
     @Test func colorQuantizerRespectsMaximumColorCount() {
