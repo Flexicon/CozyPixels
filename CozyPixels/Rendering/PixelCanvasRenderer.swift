@@ -5,6 +5,7 @@ import SwiftUI
 struct PixelCanvasRenderState: Equatable {
     var document: PaintingDocument
     var cache: PixelCanvasRenderCache
+    var pixelImage: CGImage?
     var selectedPaletteColorID: Int?
     var showGrid: Bool
     var showNumbers: Bool
@@ -12,15 +13,83 @@ struct PixelCanvasRenderState: Equatable {
     init(
         document: PaintingDocument,
         cache: PixelCanvasRenderCache? = nil,
+        pixelImage: CGImage? = nil,
         selectedPaletteColorID: Int?,
         showGrid: Bool,
         showNumbers: Bool
     ) {
         self.document = document
         self.cache = cache ?? PixelCanvasRenderCache(document: document)
+        self.pixelImage = pixelImage
         self.selectedPaletteColorID = selectedPaletteColorID
         self.showGrid = showGrid
         self.showNumbers = showNumbers
+    }
+}
+
+struct PixelCanvasImageRenderer {
+    func makeImage(document: PaintingDocument, cache: PixelCanvasRenderCache, selectedPaletteColorID: Int?) -> CGImage? {
+        let width = document.width
+        let height = document.height
+        guard width > 0, height > 0 else { return nil }
+
+        let bytesPerPixel = 4
+        let bytesPerRow = width * bytesPerPixel
+        var bytes = [UInt8](repeating: 0, count: height * bytesPerRow)
+
+        for pixelIndex in document.targetColorIndexByPixel.indices {
+            let targetID = Int(document.targetColorIndexByPixel[pixelIndex])
+            guard targetID > 0 else { continue }
+
+            let byteIndex = pixelIndex * bytesPerPixel
+
+            if cache.bitset.contains(pixelIndex), let targetColor = cache.paletteByID[targetID] {
+                bytes[byteIndex] = targetColor.red
+                bytes[byteIndex + 1] = targetColor.green
+                bytes[byteIndex + 2] = targetColor.blue
+                bytes[byteIndex + 3] = targetColor.alpha
+                continue
+            }
+
+            let gray: UInt8 = selectedPaletteColorID == targetID ? 199 : 229
+            bytes[byteIndex] = gray
+            bytes[byteIndex + 1] = gray
+            bytes[byteIndex + 2] = gray
+            bytes[byteIndex + 3] = 255
+
+            if let wrongAttempt = cache.wrongAttemptsByPixel[pixelIndex], let attemptedColor = cache.paletteByID[wrongAttempt.attemptedPaletteColorID] {
+                blend(color: attemptedColor, alpha: 0.42, into: &bytes, at: byteIndex)
+            }
+        }
+
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+        guard let provider = CGDataProvider(data: Data(bytes) as CFData) else { return nil }
+
+        return CGImage(
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: bytesPerRow,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: bitmapInfo),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        )
+    }
+
+    private func blend(color: PaletteColor, alpha: Double, into bytes: inout [UInt8], at byteIndex: Int) {
+        let sourceAlpha = min(max(Double(color.alpha) / 255 * alpha, 0), 1)
+        let destinationAlpha = Double(bytes[byteIndex + 3]) / 255
+        let outputAlpha = sourceAlpha + destinationAlpha * (1 - sourceAlpha)
+        guard outputAlpha > 0 else { return }
+
+        bytes[byteIndex] = UInt8((Double(color.red) * sourceAlpha + Double(bytes[byteIndex]) * destinationAlpha * (1 - sourceAlpha)) / outputAlpha)
+        bytes[byteIndex + 1] = UInt8((Double(color.green) * sourceAlpha + Double(bytes[byteIndex + 1]) * destinationAlpha * (1 - sourceAlpha)) / outputAlpha)
+        bytes[byteIndex + 2] = UInt8((Double(color.blue) * sourceAlpha + Double(bytes[byteIndex + 2]) * destinationAlpha * (1 - sourceAlpha)) / outputAlpha)
+        bytes[byteIndex + 3] = UInt8(outputAlpha * 255)
     }
 }
 
@@ -80,6 +149,8 @@ struct PixelCanvasRenderer {
 
         if isCompleted {
             drawCompletedImage(context: &context, document: document, geometry: geometry, paletteByID: paletteByID)
+        } else if let pixelImage = state.pixelImage {
+            drawPixelImage(context: &context, image: pixelImage, geometry: geometry)
         } else {
             drawPixels(context: &context, document: document, geometry: geometry, visibleRange: visibleRange, bitset: bitset, paletteByID: paletteByID, wrongAttemptsByPixel: wrongAttemptsByPixel)
         }
@@ -129,6 +200,20 @@ struct PixelCanvasRenderer {
                     }
                 }
             }
+        }
+    }
+
+    private func drawPixelImage(context: inout GraphicsContext, image: CGImage, geometry: PixelGeometry) {
+        let destinationRect = CGRect(origin: geometry.origin, size: geometry.contentSize)
+
+        context.withCGContext { cgContext in
+            cgContext.saveGState()
+            cgContext.translateBy(x: 0, y: destinationRect.minY + destinationRect.maxY)
+            cgContext.scaleBy(x: 1, y: -1)
+            cgContext.interpolationQuality = .none
+            cgContext.setShouldAntialias(false)
+            cgContext.draw(image, in: destinationRect)
+            cgContext.restoreGState()
         }
     }
 

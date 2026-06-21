@@ -8,6 +8,7 @@ struct PaintingEditorScreen: View {
     @Environment(\.modelContext) private var modelContext
     @State private var document: PaintingDocument?
     @State private var renderCache: PixelCanvasRenderCache?
+    @State private var pixelImage: CGImage?
     @State private var selectedPaletteColorID: Int?
     @State private var showGrid = true
     @State private var showNumbers = true
@@ -19,6 +20,7 @@ struct PaintingEditorScreen: View {
 
     private let store = try? PaintingStore()
     private let previewRenderer = PreviewRenderer()
+    private let pixelImageRenderer = PixelCanvasImageRenderer()
     private let paintingEngine = PaintingEngine()
     private let editorBackground = Color(red: 0.11, green: 0.11, blue: 0.11)
 
@@ -30,6 +32,7 @@ struct PaintingEditorScreen: View {
                         InteractivePixelCanvas(
                             document: document,
                             renderCache: renderCache,
+                            pixelImage: pixelImage,
                             selectedPaletteColorID: selectedPaletteColorID,
                             showGrid: showGrid,
                             showNumbers: showNumbers,
@@ -100,6 +103,9 @@ struct PaintingEditorScreen: View {
         .onDisappear {
             previewSaveTask?.cancel()
         }
+        .onChange(of: selectedPaletteColorID) { _, _ in
+            rebuildPixelImage()
+        }
     }
 
     private func handlePaintStroke(pixelIndex: Int, phase: CanvasInputPhase, document: PaintingDocument) {
@@ -125,9 +131,11 @@ struct PaintingEditorScreen: View {
         do {
             guard let store else { throw PaintingStoreError.missingPaintingDocument(URL(filePath: painting.projectBlobFilename)) }
             let loadedDocument = try store.loadPaintingDocument(for: painting.id)
+            let loadedCache = PixelCanvasRenderCache(document: loadedDocument)
             document = loadedDocument
-            renderCache = PixelCanvasRenderCache(document: loadedDocument)
+            renderCache = loadedCache
             updateSelectedPaletteColorID(for: loadedDocument)
+            pixelImage = pixelImageRenderer.makeImage(document: loadedDocument, cache: loadedCache, selectedPaletteColorID: selectedPaletteColorID)
             errorMessage = nil
         } catch PaintingStoreError.missingPaintingDocument {
             errorMessage = "This painting file is missing. Delete it from Home or restore it from a backup."
@@ -151,14 +159,16 @@ struct PaintingEditorScreen: View {
 
         painting.updatedAt = Date()
         painting.isCompleted = painting.completedPixelCount >= painting.totalPaintablePixelCount
+        let updatedCache = PixelCanvasRenderCache(document: updatedDocument)
         document = updatedDocument
-        renderCache = PixelCanvasRenderCache(document: updatedDocument)
+        renderCache = updatedCache
 
         if !wasCompleted, painting.isCompleted {
             canvasResetToken += 1
             showGrid = false
         }
         updateSelectedPaletteColorID(for: updatedDocument)
+        pixelImage = pixelImageRenderer.makeImage(document: updatedDocument, cache: updatedCache, selectedPaletteColorID: selectedPaletteColorID)
 
         if updatePreview {
             persistDocument(updatePreview: true)
@@ -174,6 +184,11 @@ struct PaintingEditorScreen: View {
             return
         }
         selectedPaletteColorID = remainingColorIDs.first
+    }
+
+    private func rebuildPixelImage() {
+        guard let document, let renderCache else { return }
+        pixelImage = pixelImageRenderer.makeImage(document: document, cache: renderCache, selectedPaletteColorID: selectedPaletteColorID)
     }
 
     private func persistDocument(updatePreview: Bool = false) {

@@ -30,7 +30,7 @@ Likely fix direction:
 
 ### 2. Per-frame rebuilding of derived state
 
-Status: pending
+Status: completed
 
 `PixelCanvasRenderer.render` rebuilds these every frame:
 
@@ -50,7 +50,7 @@ Likely fix direction:
 
 ### 3. Thousands of path/color operations per frame
 
-Status: pending
+Status: in progress
 
 `drawPixels` creates a `CGRect`, `Path(rect)`, and fill operation for each visible paintable pixel. A full 64x64 viewport means up to 4096 path creations and fills per frame, plus color bridging through `targetColor.swiftUIColor`.
 
@@ -66,7 +66,7 @@ Likely fix direction:
 
 ### 4. Grid is drawn even when UI state says grid is hidden
 
-Status: pending
+Status: completed
 
 `PixelCanvasRenderState` includes `showGrid`, but `render` currently draws the grid whenever `!isCompleted && geometry.cellSize >= 3`:
 
