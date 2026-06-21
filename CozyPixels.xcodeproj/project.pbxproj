@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		27CA7AAE2FE7EA7300D344EF /* PhraseKit in Frameworks */ = {isa = PBXBuildFile; productRef = 27CA7AAD2FE7EA7300D344EF /* PhraseKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		278545AE2FE5CE0B00B1B59D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				27CA7AAE2FE7EA7300D344EF /* PhraseKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = CozyPixels;
 			packageProductDependencies = (
+				27CA7AAD2FE7EA7300D344EF /* PhraseKit */,
 			);
 			productName = CozyPixels;
 			productReference = 2785459E2FE5CE0A00B1B59D /* CozyPixels.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = 278545952FE5CE0A00B1B59D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				27CA7AAC2FE7EA7300D344EF /* XCRemoteSwiftPackageReference "PhraseKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2785459F2FE5CE0A00B1B59D /* Products */;
 			projectDirPath = "";
@@ -574,6 +583,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		27CA7AAC2FE7EA7300D344EF /* XCRemoteSwiftPackageReference "PhraseKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/markbattistella/PhraseKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 26.5.26;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		27CA7AAD2FE7EA7300D344EF /* PhraseKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 27CA7AAC2FE7EA7300D344EF /* XCRemoteSwiftPackageReference "PhraseKit" */;
+			productName = PhraseKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 278545962FE5CE0A00B1B59D /* Project object */;
 }

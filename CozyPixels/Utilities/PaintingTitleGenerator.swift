@@ -1,14 +1,7 @@
 import Foundation
+import PhraseKit
 
 enum PaintingTitleGenerator {
-    private static let adjectives = [
-        "Cozy", "Tiny", "Bright", "Calm", "Happy", "Soft", "Sunny", "Quiet"
-    ]
-
-    private static let nouns = [
-        "Pixel", "Mosaic", "Garden", "Critter", "Sprite", "Pattern", "Canvas", "Puzzle"
-    ]
-
     static func titleFromFilename(_ filename: String) -> String? {
         let name = (filename as NSString).deletingPathExtension
         let cleaned = name
@@ -26,6 +19,9 @@ enum PaintingTitleGenerator {
     }
 
     static func randomTitle() -> String {
-        "\(adjectives.randomElement() ?? "Cozy") \(nouns.randomElement() ?? "Pixel")"
+        let generator = PhraseGenerator()
+        let phrase = generator.generatePhrase(combinationType: .adjectiveNoun)
+            ?? generator.generate(withDefault: "cozy-pixel")
+        return titleFromFilename(phrase) ?? "Cozy Pixel"
     }
 }

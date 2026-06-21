@@ -1,0 +1,15 @@
+{
+  "originHash" : "6ed53e2a98e04e3cb2001ddbd58ad6cb37da4cca781b18015ce9d9294eb44e80",
+  "pins" : [
+    {
+      "identity" : "phrasekit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/markbattistella/PhraseKit",
+      "state" : {
+        "revision" : "e89c7aae73fd6cd1add24da5228bc3a6f2d81452",
+        "version" : "26.5.26"
+      }
+    }
+  ],
+  "version" : 3
+}
