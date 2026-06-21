@@ -20,6 +20,8 @@ struct PaintingEditorScreen: View {
     @State private var saveErrorMessage: String?
     @State private var previewSaveTask: Task<Void, Never>?
     @State private var isLoadingDocument = false
+    @State private var completionCelebrationToken = 0
+    @State private var showCompletionCelebration = false
 
     private let store = try? PaintingStore()
     private let previewRenderer = PreviewRenderer()
@@ -48,6 +50,12 @@ struct PaintingEditorScreen: View {
                             }
                         )
                         .frame(width: proxy.size.width, height: proxy.size.height)
+
+                        if showCompletionCelebration {
+                            CompletionCelebrationOverlay(token: completionCelebrationToken)
+                                .transition(.opacity)
+                                .allowsHitTesting(false)
+                        }
                     } else if let errorMessage {
                         ContentUnavailableView("Editor Unavailable", systemImage: "exclamationmark.triangle", description: Text(errorMessage))
                     } else {
@@ -114,6 +122,7 @@ struct PaintingEditorScreen: View {
             persistSelectedPaletteColorID()
             rebuildPixelImage()
         }
+        .sensoryFeedback(.success, trigger: completionCelebrationToken)
     }
 
     private func handlePaintStroke(pixelIndex: Int, phase: CanvasInputPhase) {
@@ -182,6 +191,7 @@ struct PaintingEditorScreen: View {
         if !wasCompleted, painting.isCompleted {
             canvasResetToken += 1
             showGrid = false
+            presentCompletionCelebration()
         }
         updateSelectedPaletteColorID(for: updatedDocument, preferredColorID: selectedPaletteColorID)
         updatedDocument.lastSelectedPaletteColorID = selectedPaletteColorID
@@ -256,6 +266,21 @@ struct PaintingEditorScreen: View {
         persistDocument()
     }
 
+    private func presentCompletionCelebration() {
+        completionCelebrationToken += 1
+
+        withAnimation(.easeOut(duration: 0.18)) {
+            showCompletionCelebration = true
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.4))
+            withAnimation(.easeIn(duration: 0.35)) {
+                showCompletionCelebration = false
+            }
+        }
+    }
+
     private func makeUnfinishedColorIDs(for document: PaintingDocument) -> Set<Int> {
         let bitset = Bitset(data: document.correctPaintedBitset, bitCount: document.width * document.height)
 
@@ -271,5 +296,130 @@ struct PaintingEditorScreen: View {
         palette.compactMap { color in
             unfinishedColorIDs.contains(color.id) ? color.id : nil
         }
+    }
+}
+
+private struct CompletionCelebrationOverlay: View {
+    let token: Int
+
+    @State private var artworkScale = 0.82
+    @State private var badgeScale = 0.65
+    @State private var badgeOpacity = 0.0
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.16)
+
+            ConfettiBurst(token: token)
+
+            VStack(spacing: 18) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 38, weight: .bold))
+                    .foregroundStyle(.yellow)
+                    .symbolEffect(.bounce, value: token)
+
+                VStack(spacing: 8) {
+                    Text("Painting Complete!")
+                        .font(.system(.title2, design: .rounded, weight: .bold))
+
+                    Text("100% colored in")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 18)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(.white.opacity(0.32), lineWidth: 1)
+                }
+                .scaleEffect(badgeScale)
+                .opacity(badgeOpacity)
+            }
+            .scaleEffect(artworkScale)
+        }
+        .task(id: token) {
+            artworkScale = 0.82
+            badgeScale = 0.65
+            badgeOpacity = 0
+
+            withAnimation(.spring(response: 0.48, dampingFraction: 0.58)) {
+                artworkScale = 1.06
+                badgeScale = 1.08
+                badgeOpacity = 1
+            }
+
+            try? await Task.sleep(for: .milliseconds(520))
+
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.72)) {
+                artworkScale = 1
+                badgeScale = 1
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Painting complete")
+    }
+}
+
+private struct ConfettiBurst: View {
+    let token: Int
+
+    @State private var isBursting = false
+
+    private let pieces: [ConfettiPiece] = (0..<42).map { ConfettiPiece(id: $0) }
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                ForEach(pieces) { piece in
+                    RoundedRectangle(cornerRadius: piece.cornerRadius, style: .continuous)
+                        .fill(piece.color)
+                        .frame(width: piece.size.width, height: piece.size.height)
+                        .rotationEffect(.degrees(isBursting ? piece.endRotation : piece.startRotation))
+                        .position(
+                            x: piece.startX * proxy.size.width,
+                            y: isBursting ? proxy.size.height * piece.endY : -24
+                        )
+                        .opacity(isBursting ? 0 : 1)
+                        .animation(
+                            .easeOut(duration: piece.duration).delay(piece.delay),
+                            value: isBursting
+                        )
+                }
+            }
+        }
+        .task(id: token) {
+            isBursting = false
+            await Task.yield()
+            isBursting = true
+        }
+    }
+}
+
+private struct ConfettiPiece: Identifiable {
+    let id: Int
+    let color: Color
+    let size: CGSize
+    let cornerRadius: CGFloat
+    let startX: CGFloat
+    let endY: CGFloat
+    let startRotation: Double
+    let endRotation: Double
+    let duration: Double
+    let delay: Double
+
+    init(id: Int) {
+        self.id = id
+
+        let colors: [Color] = [.pink, .orange, .yellow, .green, .cyan, .purple]
+        color = colors[id % colors.count]
+        size = CGSize(width: 6 + CGFloat((id * 3) % 7), height: 10 + CGFloat((id * 5) % 10))
+        cornerRadius = id.isMultiple(of: 3) ? 4 : 1.5
+        startX = CGFloat((id * 37) % 100) / 100
+        endY = 0.28 + CGFloat((id * 19) % 82) / 100
+        startRotation = Double((id * 29) % 180)
+        endRotation = startRotation + Double(id.isMultiple(of: 2) ? 360 : -360) + Double((id * 17) % 180)
+        duration = 1.05 + Double((id * 11) % 55) / 100
+        delay = Double((id * 7) % 28) / 100
     }
 }
