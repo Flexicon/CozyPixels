@@ -16,7 +16,7 @@ struct InteractivePixelCanvas: View {
     @State private var transform = CanvasTransform()
     @State private var gestureStartTransform = CanvasTransform()
     @State private var pinchStartLocation: CGPoint?
-    @State private var lastStrokePixelIndex: Int?
+    @State private var lastStrokeCoordinate: PixelCoordinate?
 
     var body: some View {
         GeometryReader { proxy in
@@ -107,31 +107,46 @@ struct InteractivePixelCanvas: View {
     private func handlePaintStroke(at point: CGPoint, phase: CanvasInputPhase, canvasSize: CGSize) {
         switch phase {
         case .began:
-            lastStrokePixelIndex = nil
+            lastStrokeCoordinate = nil
             onStrokePixel(-1, phase)
         case .changed:
-            guard let pixelIndex = pixelIndex(at: point, canvasSize: canvasSize) else { return }
-            guard lastStrokePixelIndex != pixelIndex else { return }
-            lastStrokePixelIndex = pixelIndex
-            onStrokePixel(pixelIndex, phase)
+            let imageSize = PixelSize(width: document.width, height: document.height)
+            guard let coordinate = pixelCoordinate(at: point, canvasSize: canvasSize, imageSize: imageSize) else { return }
+            let coordinates: [PixelCoordinate]
+            if let lastStrokeCoordinate {
+                coordinates = pixelsCrossed(from: lastStrokeCoordinate, to: coordinate, bounds: imageSize).dropFirst().map { $0 }
+            } else {
+                coordinates = [coordinate]
+            }
+            guard !coordinates.isEmpty else { return }
+            lastStrokeCoordinate = coordinate
+            for coordinate in coordinates {
+                onStrokePixel(coordinate.pixelIndex(in: imageSize), phase)
+            }
         case .ended, .cancelled:
             onStrokePixel(-1, phase)
-            lastStrokePixelIndex = nil
+            lastStrokeCoordinate = nil
         }
     }
 
     private func pixelIndex(at point: CGPoint, canvasSize: CGSize) -> Int? {
         let imageSize = PixelSize(width: document.width, height: document.height)
-        guard let coordinate = transform.screenPointToPixel(point, canvasSize: canvasSize, imageSize: imageSize) else { return nil }
+        guard let coordinate = pixelCoordinate(at: point, canvasSize: canvasSize, imageSize: imageSize) else { return nil }
         let pixelIndex = coordinate.pixelIndex(in: imageSize)
         guard pixelIndex < document.targetColorIndexByPixel.count else { return nil }
         return pixelIndex
+    }
+
+    private func pixelCoordinate(at point: CGPoint, canvasSize: CGSize, imageSize: PixelSize) -> PixelCoordinate? {
+        guard let coordinate = transform.screenPointToPixel(point, canvasSize: canvasSize, imageSize: imageSize) else { return nil }
+        guard coordinate.pixelIndex(in: imageSize) < document.targetColorIndexByPixel.count else { return nil }
+        return coordinate
     }
 
     private func resetTransform() {
         transform = CanvasTransform()
         gestureStartTransform = transform
         pinchStartLocation = nil
-        lastStrokePixelIndex = nil
+        lastStrokeCoordinate = nil
     }
 }

@@ -101,6 +101,61 @@ struct CozyPixelsTests {
         #expect(pixelIndex == 35)
     }
 
+    @Test func pixelsCrossedIncludesHorizontalCells() {
+        let pixels = pixelsCrossed(from: PixelCoordinate(x: 2, y: 5), to: PixelCoordinate(x: 8, y: 5))
+
+        #expect(pixels == [
+            PixelCoordinate(x: 2, y: 5),
+            PixelCoordinate(x: 3, y: 5),
+            PixelCoordinate(x: 4, y: 5),
+            PixelCoordinate(x: 5, y: 5),
+            PixelCoordinate(x: 6, y: 5),
+            PixelCoordinate(x: 7, y: 5),
+            PixelCoordinate(x: 8, y: 5)
+        ])
+    }
+
+    @Test func pixelsCrossedIncludesVerticalCells() {
+        let pixels = pixelsCrossed(from: PixelCoordinate(x: 3, y: 1), to: PixelCoordinate(x: 3, y: 4))
+
+        #expect(pixels == [
+            PixelCoordinate(x: 3, y: 1),
+            PixelCoordinate(x: 3, y: 2),
+            PixelCoordinate(x: 3, y: 3),
+            PixelCoordinate(x: 3, y: 4)
+        ])
+    }
+
+    @Test func pixelsCrossedIncludesDiagonalCells() {
+        let pixels = pixelsCrossed(from: PixelCoordinate(x: 1, y: 1), to: PixelCoordinate(x: 4, y: 4))
+
+        #expect(pixels == [
+            PixelCoordinate(x: 1, y: 1),
+            PixelCoordinate(x: 2, y: 2),
+            PixelCoordinate(x: 3, y: 3),
+            PixelCoordinate(x: 4, y: 4)
+        ])
+    }
+
+    @Test func pixelsCrossedDoesNotDuplicateSamePixel() {
+        let pixels = pixelsCrossed(from: PixelCoordinate(x: 6, y: 7), to: PixelCoordinate(x: 6, y: 7))
+
+        #expect(pixels == [PixelCoordinate(x: 6, y: 7)])
+    }
+
+    @Test func pixelsCrossedFiltersOutOfBoundsCells() {
+        let pixels = pixelsCrossed(
+            from: PixelCoordinate(x: -2, y: 1),
+            to: PixelCoordinate(x: 2, y: 1),
+            bounds: PixelSize(width: 2, height: 2)
+        )
+
+        #expect(pixels == [
+            PixelCoordinate(x: 0, y: 1),
+            PixelCoordinate(x: 1, y: 1)
+        ])
+    }
+
     @Test func paintingStoreSavesAndLoadsPaintingDocument() throws {
         let rootDirectory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: rootDirectory) }

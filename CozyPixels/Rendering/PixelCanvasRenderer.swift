@@ -248,20 +248,7 @@ struct PixelCanvasRenderer {
     ) {
         let origin = geometry.origin
         let cellSize = geometry.cellSize
-        let font = CTFontCreateUIFontForLanguage(.system, numberFontSize, nil) ?? CTFontCreateWithName("Helvetica-Bold" as CFString, numberFontSize, nil)
-        let textColor = CGColor(gray: 0, alpha: 0.72)
-        let numberLineByID = Dictionary(uniqueKeysWithValues: paletteByID.keys.map { targetID in
-            let text = NSAttributedString(
-                string: "\(targetID)",
-                attributes: [
-                    .font: font,
-                    .foregroundColor: textColor
-                ]
-            )
-            let line = CTLineCreateWithAttributedString(text)
-            let bounds = CTLineGetBoundsWithOptions(line, [.useOpticalBounds])
-            return (targetID, (line: line, bounds: bounds))
-        })
+        let numberLineByID = NumberLineCache.shared.lines(for: paletteByID.keys.sorted(), fontSize: numberFontSize)
 
         context.withCGContext { cgContext in
             cgContext.saveGState()
@@ -295,6 +282,44 @@ struct PixelCanvasRenderer {
 
             cgContext.restoreGState()
         }
+    }
+}
+
+final class NumberLineCache {
+    static let shared = NumberLineCache()
+
+    private struct Key: Hashable {
+        var paletteIDs: [Int]
+        var fontSize: CGFloat
+    }
+
+    private let textColor = CGColor(gray: 0, alpha: 0.72)
+    private var cachedKey: Key?
+    private var cachedLines: [Int: (line: CTLine, bounds: CGRect)] = [:]
+
+    func lines(for paletteIDs: [Int], fontSize: CGFloat) -> [Int: (line: CTLine, bounds: CGRect)] {
+        let key = Key(paletteIDs: paletteIDs, fontSize: fontSize)
+        if cachedKey == key {
+            return cachedLines
+        }
+
+        let font = CTFontCreateUIFontForLanguage(.system, fontSize, nil) ?? CTFontCreateWithName("Helvetica-Bold" as CFString, fontSize, nil)
+        let lines = Dictionary(uniqueKeysWithValues: paletteIDs.map { targetID in
+            let text = NSAttributedString(
+                string: "\(targetID)",
+                attributes: [
+                    .font: font,
+                    .foregroundColor: textColor
+                ]
+            )
+            let line = CTLineCreateWithAttributedString(text)
+            let bounds = CTLineGetBoundsWithOptions(line, [.useOpticalBounds])
+            return (targetID, (line: line, bounds: bounds))
+        })
+
+        cachedKey = key
+        cachedLines = lines
+        return lines
     }
 }
 

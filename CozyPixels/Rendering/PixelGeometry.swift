@@ -23,6 +23,43 @@ nonisolated struct PixelCoordinate: Equatable, Sendable {
     func pixelIndex(in size: PixelSize) -> Int {
         y * size.width + x
     }
+
+    func isContained(in size: PixelSize) -> Bool {
+        x >= 0 && x < size.width && y >= 0 && y < size.height
+    }
+}
+
+nonisolated func pixelsCrossed(from start: PixelCoordinate, to end: PixelCoordinate, bounds: PixelSize? = nil) -> [PixelCoordinate] {
+    let dx = abs(end.x - start.x)
+    let dy = abs(end.y - start.y)
+    let stepX = start.x == end.x ? 0 : (start.x < end.x ? 1 : -1)
+    let stepY = start.y == end.y ? 0 : (start.y < end.y ? 1 : -1)
+
+    var x = start.x
+    var y = start.y
+    var error = dx - dy
+    var coordinates: [PixelCoordinate] = []
+
+    while true {
+        let coordinate = PixelCoordinate(x: x, y: y)
+        if bounds.map({ coordinate.isContained(in: $0) }) ?? true {
+            coordinates.append(coordinate)
+        }
+
+        if x == end.x, y == end.y { break }
+
+        let doubledError = 2 * error
+        if doubledError > -dy {
+            error -= dy
+            x += stepX
+        }
+        if doubledError < dx {
+            error += dx
+            y += stepY
+        }
+    }
+
+    return coordinates
 }
 
 nonisolated struct PixelGeometry: Equatable, Sendable {

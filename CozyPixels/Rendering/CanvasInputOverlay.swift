@@ -33,7 +33,6 @@ struct CanvasInputOverlay: UIViewRepresentable {
         longPress.delegate = context.coordinator
 
         tap.require(toFail: longPress)
-        pan.require(toFail: longPress)
 
         view.addGestureRecognizer(tap)
         view.addGestureRecognizer(pan)
