@@ -148,7 +148,7 @@ struct PaintingEditorScreen: View {
             pixelImage = pixelImageRenderer.makeImage(document: loadedDocument, cache: loadedCache, selectedPaletteColorID: selectedPaletteColorID)
             errorMessage = nil
         } catch PaintingStoreError.missingPaintingDocument {
-            errorMessage = "This painting file is missing. Delete it from Home or restore it from a backup."
+            errorMessage = "This painting file is missing. Delete it from Your Creations or restore it from a backup."
         } catch PaintingStoreError.corruptPaintingDocument {
             errorMessage = "This painting file is corrupt and cannot be opened."
         } catch {

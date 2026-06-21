@@ -21,7 +21,7 @@ struct ContentView: View {
                     }
             }
             .tabItem {
-                Label("Home", systemImage: "square.grid.2x2")
+                Label("Your Creations", systemImage: "square.grid.2x2")
             }
             .tag(AppTab.home)
 
