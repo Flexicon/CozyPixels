@@ -2,6 +2,7 @@ import SwiftUI
 
 struct InteractivePixelCanvas: View {
     let document: PaintingDocument
+    let renderCache: PixelCanvasRenderCache
     let selectedPaletteColorID: Int?
     let showGrid: Bool
     let showNumbers: Bool
@@ -22,6 +23,7 @@ struct InteractivePixelCanvas: View {
                 PixelCanvasView(
                     state: PixelCanvasRenderState(
                         document: document,
+                        cache: renderCache,
                         selectedPaletteColorID: selectedPaletteColorID,
                         showGrid: showGrid,
                         showNumbers: showNumbers

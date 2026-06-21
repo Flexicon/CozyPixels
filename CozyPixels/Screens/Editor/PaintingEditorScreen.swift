@@ -7,8 +7,9 @@ struct PaintingEditorScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @State private var document: PaintingDocument?
+    @State private var renderCache: PixelCanvasRenderCache?
     @State private var selectedPaletteColorID: Int?
-    @State private var showGrid = false
+    @State private var showGrid = true
     @State private var showNumbers = true
     @State private var canvasResetToken = 0
     @State private var strokeDidChange = false
@@ -25,9 +26,10 @@ struct PaintingEditorScreen: View {
         VStack(spacing: 0) {
             GeometryReader { proxy in
                 ZStack(alignment: .topLeading) {
-                    if let document {
+                    if let document, let renderCache {
                         InteractivePixelCanvas(
                             document: document,
+                            renderCache: renderCache,
                             selectedPaletteColorID: selectedPaletteColorID,
                             showGrid: showGrid,
                             showNumbers: showNumbers,
@@ -124,6 +126,7 @@ struct PaintingEditorScreen: View {
             guard let store else { throw PaintingStoreError.missingPaintingDocument(URL(filePath: painting.projectBlobFilename)) }
             let loadedDocument = try store.loadPaintingDocument(for: painting.id)
             document = loadedDocument
+            renderCache = PixelCanvasRenderCache(document: loadedDocument)
             updateSelectedPaletteColorID(for: loadedDocument)
             errorMessage = nil
         } catch PaintingStoreError.missingPaintingDocument {
@@ -149,6 +152,7 @@ struct PaintingEditorScreen: View {
         painting.updatedAt = Date()
         painting.isCompleted = painting.completedPixelCount >= painting.totalPaintablePixelCount
         document = updatedDocument
+        renderCache = PixelCanvasRenderCache(document: updatedDocument)
 
         if !wasCompleted, painting.isCompleted {
             canvasResetToken += 1

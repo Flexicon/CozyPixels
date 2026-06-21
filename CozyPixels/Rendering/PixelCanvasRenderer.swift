@@ -4,9 +4,50 @@ import SwiftUI
 
 struct PixelCanvasRenderState: Equatable {
     var document: PaintingDocument
+    var cache: PixelCanvasRenderCache
     var selectedPaletteColorID: Int?
     var showGrid: Bool
     var showNumbers: Bool
+
+    init(
+        document: PaintingDocument,
+        cache: PixelCanvasRenderCache? = nil,
+        selectedPaletteColorID: Int?,
+        showGrid: Bool,
+        showNumbers: Bool
+    ) {
+        self.document = document
+        self.cache = cache ?? PixelCanvasRenderCache(document: document)
+        self.selectedPaletteColorID = selectedPaletteColorID
+        self.showGrid = showGrid
+        self.showNumbers = showNumbers
+    }
+}
+
+struct PixelCanvasRenderCache: Equatable {
+    var bitset: Bitset
+    var paletteByID: [Int: PaletteColor]
+    var wrongAttemptsByPixel: [Int: WrongAttempt]
+    var isCompleted: Bool
+
+    init(document: PaintingDocument) {
+        let bitset = Bitset(data: document.correctPaintedBitset, bitCount: document.width * document.height)
+
+        self.bitset = bitset
+        self.paletteByID = Dictionary(uniqueKeysWithValues: document.palette.map { ($0.id, $0) })
+        self.wrongAttemptsByPixel = Dictionary(uniqueKeysWithValues: document.wrongAttempts.map { ($0.pixelIndex, $0) })
+        self.isCompleted = Self.isDocumentCompleted(document, bitset: bitset)
+    }
+
+    private static func isDocumentCompleted(_ document: PaintingDocument, bitset: Bitset) -> Bool {
+        for pixelIndex in document.targetColorIndexByPixel.indices where document.targetColorIndexByPixel[pixelIndex] > 0 {
+            if !bitset.contains(pixelIndex) {
+                return false
+            }
+        }
+
+        return true
+    }
 }
 
 struct PixelCanvasRenderer {
@@ -28,10 +69,10 @@ struct PixelCanvasRenderer {
         let geometry = transform.geometry(canvasSize: size, imageSize: imageSize)
         guard geometry.cellSize > 0 else { return }
 
-        let bitset = Bitset(data: document.correctPaintedBitset, bitCount: document.width * document.height)
-        let paletteByID = Dictionary(uniqueKeysWithValues: document.palette.map { ($0.id, $0) })
-        let wrongAttemptsByPixel = Dictionary(uniqueKeysWithValues: document.wrongAttempts.map { ($0.pixelIndex, $0) })
-        let isCompleted = isDocumentCompleted(document, bitset: bitset)
+        let bitset = state.cache.bitset
+        let paletteByID = state.cache.paletteByID
+        let wrongAttemptsByPixel = state.cache.wrongAttemptsByPixel
+        let isCompleted = state.cache.isCompleted
         let viewport = CGRect(origin: .zero, size: size)
         let visibleRange = geometry.visiblePixelRange(in: viewport)
 
@@ -50,16 +91,6 @@ struct PixelCanvasRenderer {
         if !isCompleted, state.showNumbers, geometry.cellSize >= numberCellSizeThreshold {
             drawNumbers(context: &context, document: document, geometry: geometry, visibleRange: visibleRange, bitset: bitset, paletteByID: paletteByID)
         }
-    }
-
-    private func isDocumentCompleted(_ document: PaintingDocument, bitset: Bitset) -> Bool {
-        for pixelIndex in document.targetColorIndexByPixel.indices where document.targetColorIndexByPixel[pixelIndex] > 0 {
-            if !bitset.contains(pixelIndex) {
-                return false
-            }
-        }
-
-        return true
     }
 
     private func drawPixels(
