@@ -457,6 +457,20 @@ Prioritize:
 
 UI tests are optional for MVP.
 
+For routine verification, prefer running only the unit test target to avoid the slower full scheme and current UI test bundle overhead:
+
+```sh
+xcodebuild test -scheme CozyPixels -destination 'platform=iOS Simulator,id=<available-simulator-id>' -only-testing:CozyPixelsTests
+```
+
+For compile-only checks, use:
+
+```sh
+xcodebuild build -scheme CozyPixels -destination 'platform=iOS Simulator,id=<available-simulator-id>'
+```
+
+Always choose a real simulator `id=...` from the available destinations list, not a simulator name.
+
 ## Suggested Project Structure
 
 ```txt
