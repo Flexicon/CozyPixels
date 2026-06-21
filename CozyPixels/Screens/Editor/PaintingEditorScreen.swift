@@ -65,7 +65,7 @@ struct PaintingEditorScreen: View {
                     }
                     .accessibilityLabel("Back")
                     .padding(.leading, 16)
-                    .padding(.top, max(proxy.safeAreaInsets.top, 12))
+                    .padding(.top, 16)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(editorBackground)
@@ -96,6 +96,7 @@ struct PaintingEditorScreen: View {
             }
         }
         .background(editorBackground)
+        .ignoresSafeArea(edges: .top)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .tabBar)
         .task {
