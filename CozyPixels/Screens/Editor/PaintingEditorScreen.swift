@@ -201,7 +201,18 @@ struct PaintingEditorScreen: View {
             selectedPaletteColorID = preferredColorID
             return
         }
-        selectedPaletteColorID = remainingColorIDs.first
+        guard let preferredColorID else {
+            selectedPaletteColorID = remainingColorIDs.first
+            return
+        }
+        selectedPaletteColorID = remainingColorIDs.min { lhs, rhs in
+            let lhsDistance = abs(lhs - preferredColorID)
+            let rhsDistance = abs(rhs - preferredColorID)
+            if lhsDistance == rhsDistance {
+                return lhs > rhs
+            }
+            return lhsDistance < rhsDistance
+        }
     }
 
     private func rebuildPixelImage() {
