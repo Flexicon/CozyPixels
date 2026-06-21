@@ -5,6 +5,8 @@ struct HomeScreen: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Painting.updatedAt, order: .reverse) private var paintings: [Painting]
 
+    @State private var paintingToRename: Painting?
+    @State private var renameTitle = ""
     @State private var resetErrorMessage: String?
 
     private let previewRenderer = PreviewRenderer()
@@ -26,6 +28,10 @@ struct HomeScreen: View {
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
+                                Button("Rename", systemImage: "pencil") {
+                                    beginRename(painting)
+                                }
+
                                 Button("Reset", systemImage: "arrow.counterclockwise", role: .destructive) {
                                     reset(painting)
                                 }
@@ -45,6 +51,20 @@ struct HomeScreen: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(resetErrorMessage ?? "This painting could not be reset.")
+        }
+        .alert("Rename Painting", isPresented: renamePresented) {
+            TextField("Name", text: $renameTitle)
+
+            Button("Cancel", role: .cancel) {
+                paintingToRename = nil
+                renameTitle = ""
+            }
+
+            Button("Rename") {
+                renamePainting()
+            }
+        } message: {
+            Text("Enter a new name for this painting.")
         }
         .toolbar {
             ImportImageButton()
@@ -72,6 +92,18 @@ struct HomeScreen: View {
         }
 
         modelContext.delete(painting)
+    }
+
+    private var renamePresented: Binding<Bool> {
+        Binding(
+            get: { paintingToRename != nil },
+            set: { isPresented in
+                if !isPresented {
+                    paintingToRename = nil
+                    renameTitle = ""
+                }
+            }
+        )
     }
 
     private var resetErrorPresented: Binding<Bool> {
@@ -103,6 +135,27 @@ struct HomeScreen: View {
         } catch {
             resetErrorMessage = "This painting could not be reset."
         }
+    }
+
+    private func beginRename(_ painting: Painting) {
+        paintingToRename = painting
+        renameTitle = painting.title
+    }
+
+    private func renamePainting() {
+        let trimmedTitle = renameTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let painting = paintingToRename, !trimmedTitle.isEmpty else {
+            paintingToRename = nil
+            renameTitle = ""
+            return
+        }
+
+        painting.title = trimmedTitle
+        painting.updatedAt = Date()
+        try? modelContext.save()
+
+        paintingToRename = nil
+        renameTitle = ""
     }
 
     #if DEBUG
