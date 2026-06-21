@@ -20,6 +20,7 @@ struct ContentView: View {
                         PaintingEditorScreen(painting: painting)
                     }
             }
+            .toolbar(homePath.isEmpty ? .visible : .hidden, for: .navigationBar)
             .tabItem {
                 Label("Your Creations", systemImage: "square.grid.2x2")
             }

@@ -47,6 +47,7 @@ struct HomeScreen: View {
             }
         }
         .navigationTitle("Your Creations")
+        .toolbar(.visible, for: .navigationBar)
         .alert("Reset Failed", isPresented: resetErrorPresented) {
             Button("OK", role: .cancel) {}
         } message: {

@@ -97,7 +97,6 @@ struct PaintingEditorScreen: View {
         }
         .background(editorBackground)
         .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .task {
             loadDocument()
