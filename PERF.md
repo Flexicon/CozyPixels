@@ -50,11 +50,13 @@ Likely fix direction:
 
 ### 3. Thousands of path/color operations per frame
 
-Status: in progress
+Status: completed
 
 `drawPixels` creates a `CGRect`, `Path(rect)`, and fill operation for each visible paintable pixel. A full 64x64 viewport means up to 4096 path creations and fills per frame, plus color bridging through `targetColor.swiftUIColor`.
 
 This remains true after disabling numbers. The base cells are likely the dominant path if numbers are off.
+
+The editor base pixel layer now renders from a cached low-resolution `CGImage` instead of per-cell paths. Grid and numbers remain separate overlays, and `drawPixels` remains as a fallback for call sites that do not provide a cached image.
 
 Likely fix direction:
 
@@ -101,7 +103,7 @@ Likely fix direction:
 
 ### 6. SwiftUI parent body recomputation during pan
 
-Status: pending
+Status: completed
 
 Every `transform` update re-evaluates `PaintingEditorScreen.body`. That can recompute non-canvas views too. The palette bar receives count dictionaries from functions in body:
 
@@ -117,6 +119,8 @@ Likely fix direction:
 - Move derived palette counts into cached state updated only after painting/loading.
 - Split the canvas into a child view whose state changes do not cause palette recomputation.
 - Keep gesture transform state as local as possible to the rendering surface.
+
+The palette count dictionaries are now cached in editor state and refreshed only when the document loads or painting changes. Pan-driven body recomputation no longer rescans the document for palette counts.
 
 ### 7. `Canvas` may not be the best fit for mutable pixel art
 

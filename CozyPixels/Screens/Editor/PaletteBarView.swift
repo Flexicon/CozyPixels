@@ -3,32 +3,26 @@ import SwiftUI
 struct PaletteBarView: View {
     let palette: [PaletteColor]
     @Binding var selectedPaletteColorID: Int?
-    var completedCountsByColorID: [Int: Int]
-    var totalCountsByColorID: [Int: Int]
+    var unfinishedColorIDs: Set<Int>
 
-    private var remainingPalette: [(color: PaletteColor, remainingCount: Int)] {
-        palette.compactMap { color in
-            let remainingCount = totalCountsByColorID[color.id, default: 0] - completedCountsByColorID[color.id, default: 0]
-            guard remainingCount > 0 else { return nil }
-            return (color, remainingCount)
-        }
+    private var unfinishedPalette: [PaletteColor] {
+        palette.filter { unfinishedColorIDs.contains($0.id) }
     }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(remainingPalette, id: \.color.id) { item in
+                ForEach(unfinishedPalette) { color in
                     Button {
-                        selectedPaletteColorID = item.color.id
+                        selectedPaletteColorID = color.id
                     } label: {
                         PaletteColorButtonLabel(
-                            color: item.color,
-                            isSelected: selectedPaletteColorID == item.color.id,
-                            remainingCount: item.remainingCount
+                            color: color,
+                            isSelected: selectedPaletteColorID == color.id
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Color \(item.color.id), \(item.remainingCount) pixels remaining")
+                    .accessibilityLabel("Color \(color.id)")
                 }
             }
             .padding(.horizontal)
@@ -39,7 +33,6 @@ struct PaletteBarView: View {
 private struct PaletteColorButtonLabel: View {
     let color: PaletteColor
     let isSelected: Bool
-    let remainingCount: Int
 
     var body: some View {
         swatch
@@ -69,7 +62,7 @@ private struct PaletteColorButtonLabel: View {
                 }
             }
             .overlay {
-                Text("\(remainingCount)")
+                Text("\(color.id)")
                     .font(.headline.weight(.bold))
                     .foregroundStyle(.white)
                     .minimumScaleFactor(0.5)

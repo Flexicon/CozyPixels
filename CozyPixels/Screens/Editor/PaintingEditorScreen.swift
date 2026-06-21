@@ -9,6 +9,7 @@ struct PaintingEditorScreen: View {
     @State private var document: PaintingDocument?
     @State private var renderCache: PixelCanvasRenderCache?
     @State private var pixelImage: CGImage?
+    @State private var unfinishedColorIDs = Set<Int>()
     @State private var selectedPaletteColorID: Int?
     @State private var showGrid = true
     @State private var showNumbers = true
@@ -87,8 +88,7 @@ struct PaintingEditorScreen: View {
                 PaletteBarView(
                     palette: document.palette,
                     selectedPaletteColorID: $selectedPaletteColorID,
-                    completedCountsByColorID: completedCountsByColorID(for: document),
-                    totalCountsByColorID: totalCountsByColorID(for: document)
+                    unfinishedColorIDs: unfinishedColorIDs
                 )
                 .padding(.vertical, 10)
             }
@@ -134,6 +134,7 @@ struct PaintingEditorScreen: View {
             let loadedCache = PixelCanvasRenderCache(document: loadedDocument)
             document = loadedDocument
             renderCache = loadedCache
+            unfinishedColorIDs = makeUnfinishedColorIDs(for: loadedDocument)
             updateSelectedPaletteColorID(for: loadedDocument)
             pixelImage = pixelImageRenderer.makeImage(document: loadedDocument, cache: loadedCache, selectedPaletteColorID: selectedPaletteColorID)
             errorMessage = nil
@@ -162,6 +163,7 @@ struct PaintingEditorScreen: View {
         let updatedCache = PixelCanvasRenderCache(document: updatedDocument)
         document = updatedDocument
         renderCache = updatedCache
+        unfinishedColorIDs = makeUnfinishedColorIDs(for: updatedDocument)
 
         if !wasCompleted, painting.isCompleted {
             canvasResetToken += 1
@@ -179,7 +181,7 @@ struct PaintingEditorScreen: View {
     }
 
     private func updateSelectedPaletteColorID(for document: PaintingDocument) {
-        let remainingColorIDs = remainingColorIDs(for: document)
+        let remainingColorIDs = remainingColorIDs(for: document.palette)
         if let selectedPaletteColorID, remainingColorIDs.contains(selectedPaletteColorID) {
             return
         }
@@ -218,32 +220,20 @@ struct PaintingEditorScreen: View {
         }
     }
 
-    private func totalCountsByColorID(for document: PaintingDocument) -> [Int: Int] {
-        document.targetColorIndexByPixel.reduce(into: [:]) { counts, colorID in
-            let colorID = Int(colorID)
-            guard colorID > 0 else { return }
-            counts[colorID, default: 0] += 1
-        }
-    }
-
-    private func completedCountsByColorID(for document: PaintingDocument) -> [Int: Int] {
+    private func makeUnfinishedColorIDs(for document: PaintingDocument) -> Set<Int> {
         let bitset = Bitset(data: document.correctPaintedBitset, bitCount: document.width * document.height)
 
-        return document.targetColorIndexByPixel.enumerated().reduce(into: [:]) { counts, item in
-            guard bitset.contains(item.offset) else { return }
+        return document.targetColorIndexByPixel.enumerated().reduce(into: Set<Int>()) { colorIDs, item in
+            guard !bitset.contains(item.offset) else { return }
             let colorID = Int(item.element)
             guard colorID > 0 else { return }
-            counts[colorID, default: 0] += 1
+            colorIDs.insert(colorID)
         }
     }
 
-    private func remainingColorIDs(for document: PaintingDocument) -> [Int] {
-        let completedCounts = completedCountsByColorID(for: document)
-        let totalCounts = totalCountsByColorID(for: document)
-
-        return document.palette.compactMap { color in
-            let remainingCount = totalCounts[color.id, default: 0] - completedCounts[color.id, default: 0]
-            return remainingCount > 0 ? color.id : nil
+    private func remainingColorIDs(for palette: [PaletteColor]) -> [Int] {
+        palette.compactMap { color in
+            unfinishedColorIDs.contains(color.id) ? color.id : nil
         }
     }
 }
