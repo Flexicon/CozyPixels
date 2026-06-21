@@ -15,6 +15,7 @@ struct PaintingEditorScreen: View {
     @State private var showNumbers = true
     @State private var canvasResetToken = 0
     @State private var strokeDidChange = false
+    @State private var activeStrokePaletteColorID: Int?
     @State private var errorMessage: String?
     @State private var saveErrorMessage: String?
     @State private var previewSaveTask: Task<Void, Never>?
@@ -118,6 +119,7 @@ struct PaintingEditorScreen: View {
         switch phase {
         case .began:
             strokeDidChange = false
+            activeStrokePaletteColorID = selectedPaletteColorID
         case .changed:
             guard let document else { return }
             paint(pixelIndex: pixelIndex, document: document, updatePreview: false)
@@ -126,11 +128,13 @@ struct PaintingEditorScreen: View {
                 persistDocument(updatePreview: true)
             }
             strokeDidChange = false
+            activeStrokePaletteColorID = nil
         case .cancelled:
             if strokeDidChange {
                 persistDocument(updatePreview: true)
             }
             strokeDidChange = false
+            activeStrokePaletteColorID = nil
         }
     }
 
@@ -157,7 +161,7 @@ struct PaintingEditorScreen: View {
     }
 
     private func paint(pixelIndex: Int, document currentDocument: PaintingDocument, updatePreview: Bool) {
-        guard let selectedPaletteColorID else { return }
+        guard let selectedPaletteColorID = activeStrokePaletteColorID ?? selectedPaletteColorID else { return }
         guard pixelIndex < currentDocument.targetColorIndexByPixel.count else { return }
 
         var updatedDocument = currentDocument
