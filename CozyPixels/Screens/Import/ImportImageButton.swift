@@ -10,10 +10,11 @@ struct ImportImageButton: View {
     @State private var importResult: ImageImportResult?
     @State private var errorMessage: String?
     @State private var isImporting = false
-    @State private var createdPainting: Painting?
     @State private var isPhotosPickerPresented = false
     @State private var isFileImporterPresented = false
     @State private var suggestedTitle = PaintingTitleGenerator.randomTitle()
+
+    let onOpenPainting: (Painting) -> Void
 
     var body: some View {
         Menu {
@@ -53,9 +54,6 @@ struct ImportImageButton: View {
             ImportReviewScreen(result: result, initialTitle: suggestedTitle) { title in
                 try await createPainting(title: title, from: result)
             }
-        }
-        .navigationDestination(item: $createdPainting) { painting in
-            PaintingEditorScreen(painting: painting)
         }
     }
 
@@ -138,7 +136,7 @@ struct ImportImageButton: View {
 
         modelContext.insert(painting)
         try modelContext.save()
-        createdPainting = painting
+        onOpenPainting(painting)
     }
 
     private func message(for error: Error) -> String {

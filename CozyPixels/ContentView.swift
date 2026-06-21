@@ -10,17 +10,15 @@ import SwiftData
 
 struct ContentView: View {
     @State private var selectedTab = AppTab.home
-    @State private var homePath = NavigationPath()
+    @State private var selectedPainting: Painting?
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            NavigationStack(path: $homePath) {
-                HomeScreen()
-                    .navigationDestination(for: Painting.self) { painting in
-                        PaintingEditorScreen(painting: painting)
-                    }
+            NavigationStack {
+                HomeScreen { painting in
+                    selectedPainting = painting
+                }
             }
-            .toolbar(homePath.isEmpty ? .visible : .hidden, for: .navigationBar)
             .tabItem {
                 Label("Your Creations", systemImage: "square.grid.2x2")
             }
@@ -29,14 +27,16 @@ struct ContentView: View {
             NavigationStack {
                 GalleryScreen { painting in
                     selectedTab = .home
-                    homePath = NavigationPath()
-                    homePath.append(painting)
+                    selectedPainting = painting
                 }
             }
             .tabItem {
                 Label("Gallery", systemImage: "photo.on.rectangle")
             }
             .tag(AppTab.gallery)
+        }
+        .fullScreenCover(item: $selectedPainting) { painting in
+            PaintingEditorScreen(painting: painting)
         }
     }
 }

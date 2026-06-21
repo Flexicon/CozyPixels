@@ -5,6 +5,8 @@ struct HomeScreen: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Painting.updatedAt, order: .reverse) private var paintings: [Painting]
 
+    let onOpenPainting: (Painting) -> Void
+
     @State private var paintingToRename: Painting?
     @State private var renameTitle = ""
     @State private var resetErrorMessage: String?
@@ -23,7 +25,9 @@ struct HomeScreen: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(paintings) { painting in
-                            NavigationLink(value: painting) {
+                            Button {
+                                onOpenPainting(painting)
+                            } label: {
                                 PaintingCardView(painting: painting)
                             }
                             .buttonStyle(.plain)
@@ -68,7 +72,7 @@ struct HomeScreen: View {
             Text("Enter a new name for this painting.")
         }
         .toolbar {
-            ImportImageButton()
+            ImportImageButton(onOpenPainting: onOpenPainting)
             #if DEBUG
             if paintings.isEmpty {
                 Button("Add Samples") {
