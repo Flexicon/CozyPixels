@@ -18,7 +18,6 @@ struct PaintingEditorScreen: View {
     @State private var activeStrokePaletteColorID: Int?
     @State private var errorMessage: String?
     @State private var saveErrorMessage: String?
-    @State private var previewSaveTask: Task<Void, Never>?
     @State private var isLoadingDocument = false
     @State private var completionCelebrationToken = 0
     @State private var showCompletionCelebration = false
@@ -181,7 +180,6 @@ struct PaintingEditorScreen: View {
         let wasCompleted = painting.isCompleted
         painting.completedPixelCount += change.completedDelta
 
-        painting.updatedAt = Date()
         painting.isCompleted = painting.completedPixelCount >= painting.totalPaintablePixelCount
         let updatedCache = PixelCanvasRenderCache(document: updatedDocument)
         document = updatedDocument
@@ -239,15 +237,11 @@ struct PaintingEditorScreen: View {
 
         do {
             try store.savePaintingDocument(document, for: painting.id)
+            painting.updatedAt = Date()
             if updatePreview {
                 painting.previewFilename = PaintingStore.previewFilename
-                let paintingID = painting.id
-                let previewRenderer = previewRenderer
-                previewSaveTask?.cancel()
-                previewSaveTask = Task.detached(priority: .utility) {
-                    guard let previewData = previewRenderer.pngData(for: document), !Task.isCancelled else { return }
-                    guard let previewStore = try? PaintingStore() else { return }
-                    try? previewStore.savePreviewPNG(previewData, for: paintingID)
+                if let previewData = previewRenderer.pngData(for: document) {
+                    try store.savePreviewPNG(previewData, for: painting.id)
                 }
             }
             try modelContext.save()
