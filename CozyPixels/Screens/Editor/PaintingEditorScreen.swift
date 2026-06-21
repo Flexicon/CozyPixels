@@ -187,7 +187,6 @@ struct PaintingEditorScreen: View {
             persistDocument(updatePreview: true)
         } else {
             strokeDidChange = true
-            persistDocument()
         }
     }
 

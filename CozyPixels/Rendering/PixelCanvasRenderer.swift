@@ -147,9 +147,7 @@ struct PixelCanvasRenderer {
 
         guard let visibleRange else { return }
 
-        if isCompleted {
-            drawCompletedImage(context: &context, document: document, geometry: geometry, paletteByID: paletteByID)
-        } else if let pixelImage = state.pixelImage {
+        if let pixelImage = state.pixelImage {
             drawPixelImage(context: &context, image: pixelImage, geometry: geometry)
         } else {
             drawPixels(context: &context, document: document, geometry: geometry, visibleRange: visibleRange, bitset: bitset, paletteByID: paletteByID, wrongAttemptsByPixel: wrongAttemptsByPixel)
@@ -215,63 +213,6 @@ struct PixelCanvasRenderer {
             cgContext.draw(image, in: destinationRect)
             cgContext.restoreGState()
         }
-    }
-
-    private func drawCompletedImage(
-        context: inout GraphicsContext,
-        document: PaintingDocument,
-        geometry: PixelGeometry,
-        paletteByID: [Int: PaletteColor]
-    ) {
-        guard let cgImage = completedCGImage(document: document, paletteByID: paletteByID) else { return }
-        let destinationRect = CGRect(origin: geometry.origin, size: geometry.contentSize)
-
-        context.withCGContext { cgContext in
-            cgContext.saveGState()
-            cgContext.translateBy(x: 0, y: destinationRect.minY + destinationRect.maxY)
-            cgContext.scaleBy(x: 1, y: -1)
-            cgContext.interpolationQuality = .none
-            cgContext.draw(cgImage, in: destinationRect)
-            cgContext.restoreGState()
-        }
-    }
-
-    private func completedCGImage(document: PaintingDocument, paletteByID: [Int: PaletteColor]) -> CGImage? {
-        let width = document.width
-        let height = document.height
-        guard width > 0, height > 0 else { return nil }
-
-        let bytesPerPixel = 4
-        let bytesPerRow = width * bytesPerPixel
-        var bytes = [UInt8](repeating: 0, count: height * bytesPerRow)
-
-        for pixelIndex in document.targetColorIndexByPixel.indices {
-            let colorID = Int(document.targetColorIndexByPixel[pixelIndex])
-            guard colorID > 0, let color = paletteByID[colorID] else { continue }
-
-            let byteIndex = pixelIndex * bytesPerPixel
-            bytes[byteIndex] = color.red
-            bytes[byteIndex + 1] = color.green
-            bytes[byteIndex + 2] = color.blue
-            bytes[byteIndex + 3] = color.alpha
-        }
-
-        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
-        guard let provider = CGDataProvider(data: Data(bytes) as CFData) else { return nil }
-
-        return CGImage(
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bitsPerPixel: 32,
-            bytesPerRow: bytesPerRow,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGBitmapInfo(rawValue: bitmapInfo),
-            provider: provider,
-            decode: nil,
-            shouldInterpolate: false,
-            intent: .defaultIntent
-        )
     }
 
     private func drawGrid(context: inout GraphicsContext, geometry: PixelGeometry, visibleRange: (x: Range<Int>, y: Range<Int>)) {
