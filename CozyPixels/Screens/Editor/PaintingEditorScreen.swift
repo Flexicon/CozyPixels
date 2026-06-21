@@ -97,6 +97,7 @@ struct PaintingEditorScreen: View {
         }
         .background(editorBackground)
         .ignoresSafeArea(edges: .top)
+        .statusBarHidden(true)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .tabBar)
         .task {
