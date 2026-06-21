@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct InteractivePixelCanvas: View {
     let document: PaintingDocument
@@ -17,6 +18,7 @@ struct InteractivePixelCanvas: View {
     @State private var gestureStartTransform = CanvasTransform()
     @State private var pinchStartLocation: CGPoint?
     @State private var lastStrokeCoordinate: PixelCoordinate?
+    @State private var panCommitter = CanvasPanCommitter()
 
     var body: some View {
         GeometryReader { proxy in
@@ -40,8 +42,8 @@ struct InteractivePixelCanvas: View {
                             onTapPixel(pixelIndex)
                         }
                     },
-                    onPan: { translation, phase in
-                        handlePan(translation: translation, phase: phase)
+                    onPan: { translation, phase, source in
+                        handlePan(translation: translation, phase: phase, source: source)
                     },
                     onPinch: { magnification, location, phase in
                         handlePinch(magnification: magnification, location: location, phase: phase, canvasSize: proxy.size)
@@ -55,21 +57,37 @@ struct InteractivePixelCanvas: View {
             .onChange(of: resetToken) { _, _ in
                 resetTransform()
             }
+            .onDisappear {
+                panCommitter.stop()
+            }
         }
     }
 
-    private func handlePan(translation: CGSize, phase: CanvasInputPhase) {
+    private func handlePan(translation: CGSize, phase: CanvasInputPhase, source: CanvasInputSource) {
         switch phase {
         case .began:
+            panCommitter.stop()
             gestureStartTransform = transform
+            panCommitter.begin()
         case .changed:
-            transform.offset = CGSize(
-                width: gestureStartTransform.offset.width + translation.width,
-                height: gestureStartTransform.offset.height + translation.height
-            )
+            panCommitter.update(translation: translation) { latestTranslation in
+                commitPan(translation: latestTranslation)
+            }
         case .ended, .cancelled:
+            panCommitter.end { latestTranslation in
+                commitPan(translation: latestTranslation)
+            }
             gestureStartTransform = transform
         }
+    }
+
+    private func commitPan(translation: CGSize) {
+        let nextOffset = CGSize(
+            width: gestureStartTransform.offset.width + translation.width,
+            height: gestureStartTransform.offset.height + translation.height
+        )
+        guard abs(transform.offset.width - nextOffset.width) >= 0.25 || abs(transform.offset.height - nextOffset.height) >= 0.25 else { return }
+        transform.offset = nextOffset
     }
 
     private func handlePinch(magnification: CGFloat, location: CGPoint, phase: CanvasInputPhase, canvasSize: CGSize) {
@@ -148,5 +166,53 @@ struct InteractivePixelCanvas: View {
         gestureStartTransform = transform
         pinchStartLocation = nil
         lastStrokeCoordinate = nil
+        panCommitter.stop()
+    }
+}
+
+@MainActor
+private final class CanvasPanCommitter {
+    private var displayLink: CADisplayLink?
+    private var latestTranslation = CGSize.zero
+    private var hasPendingTranslation = false
+    private var commit: ((CGSize) -> Void)?
+
+    func begin() {
+        latestTranslation = .zero
+        hasPendingTranslation = false
+    }
+
+    func update(translation: CGSize, commit: @escaping (CGSize) -> Void) {
+        latestTranslation = translation
+        hasPendingTranslation = true
+        self.commit = commit
+        startIfNeeded()
+    }
+
+    func end(commit: (CGSize) -> Void) {
+        if hasPendingTranslation {
+            commit(latestTranslation)
+        }
+        stop()
+    }
+
+    func stop() {
+        displayLink?.invalidate()
+        displayLink = nil
+        commit = nil
+        hasPendingTranslation = false
+    }
+
+    private func startIfNeeded() {
+        guard displayLink == nil else { return }
+        let displayLink = CADisplayLink(target: self, selector: #selector(displayLinkDidFire))
+        displayLink.add(to: .main, forMode: .common)
+        self.displayLink = displayLink
+    }
+
+    @objc private func displayLinkDidFire() {
+        guard hasPendingTranslation, let commit else { return }
+        commit(latestTranslation)
+        hasPendingTranslation = false
     }
 }

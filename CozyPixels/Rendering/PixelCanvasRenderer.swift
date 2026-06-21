@@ -252,6 +252,8 @@ struct PixelCanvasRenderer {
 
         context.withCGContext { cgContext in
             cgContext.saveGState()
+            cgContext.translateBy(x: 0, y: geometry.canvasSize.height)
+            cgContext.scaleBy(x: 1, y: -1)
             cgContext.textMatrix = .identity
 
             for y in visibleRange.y {
@@ -268,15 +270,11 @@ struct PixelCanvasRenderer {
                         x: origin.x + CGFloat(x) * cellSize + (cellSize - numberLine.bounds.width) / 2,
                         y: centerY - numberLine.bounds.height / 2
                     )
-                    cgContext.saveGState()
-                    cgContext.translateBy(x: 0, y: position.y * 2 + numberLine.bounds.height)
-                    cgContext.scaleBy(x: 1, y: -1)
                     cgContext.textPosition = CGPoint(
                         x: position.x - numberLine.bounds.minX,
-                        y: position.y - numberLine.bounds.minY
+                        y: geometry.canvasSize.height - position.y - numberLine.bounds.height - numberLine.bounds.minY
                     )
                     CTLineDraw(numberLine.line, cgContext)
-                    cgContext.restoreGState()
                 }
             }
 

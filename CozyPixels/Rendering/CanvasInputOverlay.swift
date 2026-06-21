@@ -3,7 +3,7 @@ import UIKit
 
 struct CanvasInputOverlay: UIViewRepresentable {
     var onTap: (CGPoint) -> Void
-    var onPan: (CGSize, CanvasInputPhase) -> Void
+    var onPan: (CGSize, CanvasInputPhase, CanvasInputSource) -> Void
     var onPinch: (CGFloat, CGPoint, CanvasInputPhase) -> Void
     var onPaintStroke: (CGPoint, CanvasInputPhase) -> Void
 
@@ -19,10 +19,17 @@ struct CanvasInputOverlay: UIViewRepresentable {
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
         tap.delegate = context.coordinator
 
-        let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
-        pan.minimumNumberOfTouches = 1
-        pan.maximumNumberOfTouches = 1
-        pan.delegate = context.coordinator
+        let fingerPan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleFingerPan(_:)))
+        fingerPan.minimumNumberOfTouches = 1
+        fingerPan.maximumNumberOfTouches = 1
+        fingerPan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        fingerPan.delegate = context.coordinator
+
+        let pencilPan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePencilPan(_:)))
+        pencilPan.minimumNumberOfTouches = 1
+        pencilPan.maximumNumberOfTouches = 1
+        pencilPan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.pencil.rawValue)]
+        pencilPan.delegate = context.coordinator
 
         let pinch = UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePinch(_:)))
         pinch.delegate = context.coordinator
@@ -35,7 +42,8 @@ struct CanvasInputOverlay: UIViewRepresentable {
         tap.require(toFail: longPress)
 
         view.addGestureRecognizer(tap)
-        view.addGestureRecognizer(pan)
+        view.addGestureRecognizer(fingerPan)
+        view.addGestureRecognizer(pencilPan)
         view.addGestureRecognizer(pinch)
         view.addGestureRecognizer(longPress)
 
@@ -51,13 +59,13 @@ struct CanvasInputOverlay: UIViewRepresentable {
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var onTap: (CGPoint) -> Void
-        var onPan: (CGSize, CanvasInputPhase) -> Void
+        var onPan: (CGSize, CanvasInputPhase, CanvasInputSource) -> Void
         var onPinch: (CGFloat, CGPoint, CanvasInputPhase) -> Void
         var onPaintStroke: (CGPoint, CanvasInputPhase) -> Void
 
         init(
             onTap: @escaping (CGPoint) -> Void,
-            onPan: @escaping (CGSize, CanvasInputPhase) -> Void,
+            onPan: @escaping (CGSize, CanvasInputPhase, CanvasInputSource) -> Void,
             onPinch: @escaping (CGFloat, CGPoint, CanvasInputPhase) -> Void,
             onPaintStroke: @escaping (CGPoint, CanvasInputPhase) -> Void
         ) {
@@ -72,11 +80,19 @@ struct CanvasInputOverlay: UIViewRepresentable {
             onTap(recognizer.location(in: view))
         }
 
-        @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
+        @objc func handleFingerPan(_ recognizer: UIPanGestureRecognizer) {
+            handlePan(recognizer, source: .finger)
+        }
+
+        @objc func handlePencilPan(_ recognizer: UIPanGestureRecognizer) {
+            handlePan(recognizer, source: .pencil)
+        }
+
+        private func handlePan(_ recognizer: UIPanGestureRecognizer, source: CanvasInputSource) {
             guard let view = recognizer.view else { return }
             let translation = recognizer.translation(in: view)
             let phase = CanvasInputPhase(recognizer.state)
-            onPan(CGSize(width: translation.x, height: translation.y), phase)
+            onPan(CGSize(width: translation.x, height: translation.y), phase, source)
         }
 
         @objc func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
@@ -96,6 +112,13 @@ struct CanvasInputOverlay: UIViewRepresentable {
             gestureRecognizer is UIPinchGestureRecognizer || otherGestureRecognizer is UIPinchGestureRecognizer
         }
     }
+}
+
+enum CanvasInputSource: Equatable {
+    case finger
+    case pencil
+    case indirect
+    case unknown
 }
 
 enum CanvasInputPhase: Equatable {
