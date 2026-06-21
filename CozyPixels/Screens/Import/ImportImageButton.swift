@@ -11,11 +11,15 @@ struct ImportImageButton: View {
     @State private var errorMessage: String?
     @State private var isImporting = false
     @State private var createdPainting: Painting?
+    @State private var isPhotosPickerPresented = false
     @State private var isFileImporterPresented = false
+    @State private var suggestedTitle = PaintingTitleGenerator.randomTitle()
 
     var body: some View {
         Menu {
-            PhotosPicker(selection: $selectedItem, matching: .images) {
+            Button {
+                isPhotosPickerPresented = true
+            } label: {
                 Label("Photos", systemImage: "photo.on.rectangle")
             }
 
@@ -28,6 +32,7 @@ struct ImportImageButton: View {
             Label("Import", systemImage: "square.and.arrow.down")
         }
         .disabled(isImporting)
+        .photosPicker(isPresented: $isPhotosPickerPresented, selection: $selectedItem, matching: .images)
         .onChange(of: selectedItem) { _, newValue in
             guard let newValue else { return }
             Task {
@@ -45,7 +50,7 @@ struct ImportImageButton: View {
             Text(errorMessage ?? "The selected image could not be imported.")
         }
         .sheet(item: $importResult) { result in
-            ImportReviewScreen(result: result) { title in
+            ImportReviewScreen(result: result, initialTitle: suggestedTitle) { title in
                 try await createPainting(title: title, from: result)
             }
         }
@@ -77,6 +82,7 @@ struct ImportImageButton: View {
                 throw ImageImportError.unsupportedImageData
             }
 
+            suggestedTitle = item.itemIdentifier.flatMap(PaintingTitleGenerator.titleFromFilename) ?? PaintingTitleGenerator.randomTitle()
             importResult = try ImageImportService().importImageData(data)
         } catch {
             errorMessage = message(for: error)
@@ -100,6 +106,7 @@ struct ImportImageButton: View {
             }
 
             let data = try Data(contentsOf: url)
+            suggestedTitle = PaintingTitleGenerator.titleFromFilename(url.lastPathComponent) ?? PaintingTitleGenerator.randomTitle()
             importResult = try ImageImportService().importImageData(data)
         } catch {
             errorMessage = message(for: error)

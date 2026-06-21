@@ -5,9 +5,15 @@ struct ImportReviewScreen: View {
     let onCreatePainting: (String) async throws -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var title = "Imported Painting"
+    @State private var title: String
     @State private var isCreating = false
     @State private var errorMessage: String?
+
+    init(result: ImageImportResult, initialTitle: String, onCreatePainting: @escaping (String) async throws -> Void) {
+        self.result = result
+        self.onCreatePainting = onCreatePainting
+        _title = State(initialValue: initialTitle)
+    }
 
     var body: some View {
         NavigationStack {
