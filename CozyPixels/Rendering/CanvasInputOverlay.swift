@@ -35,7 +35,7 @@ struct CanvasInputOverlay: UIViewRepresentable {
         pinch.delegate = context.coordinator
 
         let longPress = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleLongPress(_:)))
-        longPress.minimumPressDuration = 0.3
+        longPress.minimumPressDuration = 0.2
         longPress.allowableMovement = 10
         longPress.delegate = context.coordinator
 
